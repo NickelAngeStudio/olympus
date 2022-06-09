@@ -1,6 +1,6 @@
 # The Olympus Engine
 
-The Olympus Engine is a rust 3d engine focused on simplicity using the [MIT](https://en.wikipedia.org/wiki/MIT_License) license.
+The Olympus Engine (TOE) is a rust 3d game engine focused on simplicity using the [MIT](https://en.wikipedia.org/wiki/MIT_License) license.
 
 It abstract engine concept with deities names.
 
