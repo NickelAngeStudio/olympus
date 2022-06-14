@@ -1,32 +1,54 @@
 /*
- * @file hercules/impl_hercules.rs
+ * @file hercules/hercules.rs
  *
- * @module olympus::hercules
+ * @module olympus::hercules::hercules
  *
- * @brief Contains implementation of struct Hercules.
+ * @brief Contains definition of Hercules and the implementation
  * 
  * @details
- * Contains implementation of struct Hercules such as new, push_labour and drop.
- *
+ * Contains definition of Hercules and the implementation.
+ * Hercules is an expert of labour. He handles multi-threaded tasks and jobs.
+ * 
  * @author Mathieu Grenier
  * @copyright NickelAnge.Studio
  *
- * @date 2022-06-08
+ * @date 2022-06-14
  *
  * @version
- * 1.0 : 2022-06-08 | Mathieu Grenier | Code creation
+ * 1.0 : 2022-06-14 | Mathieu Grenier | Code creation
  *
  * @ref
  * The Rust Programming Language guide : https://doc.rust-lang.org/book/ch20-02-multithreaded.html
  * 
  * @todo
+
  */
-use super::Hercules;
-use super::Worker;
-use super::WorkerMessage;
-use std::sync::mpsc;
-use std::sync::Arc;
-use std::sync::Mutex;
+
+use std::sync::{mpsc, Arc, Mutex};
+use super::worker::{Worker, WorkerMessage};
+
+/// Hercules is an expert of labour. He handles multi-threaded tasks and jobs.
+/// 
+/// # Examples
+///
+/// ```
+/// // Crate that get the count of logical cores this process could try to use
+/// extern crate num_cpus;  
+/// 
+/// // Get the Hercules struct
+/// use olympus::Hercules; 
+/// 
+/// // Create an instance of Hercules with logical core counts
+/// let hercules = Hercules::new(num_cpus::get());
+/// 
+/// // Push labour to Hercules
+/// hercules.push_labour(|| { println!("Hello world"); });
+/// ```
+pub struct Hercules {
+    workers: Vec<Worker>,
+    sender: mpsc::Sender<WorkerMessage>,
+}
+
 
 
 impl Hercules {
@@ -70,6 +92,7 @@ impl Hercules {
 
         self.sender.send(WorkerMessage::NewLabour(labour)).unwrap();
     }
+
 }
 
 /// Implementation of drop for Hercules

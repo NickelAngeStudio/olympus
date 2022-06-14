@@ -25,49 +25,25 @@
  * Document that closure are given when using push_labour
  */
 
-use std::thread;
-use std::sync::mpsc;
 
-/// Hercules is an expert of labour. He handles multi-threaded tasks and jobs.
-/// 
-/// # Examples
-///
-/// ```
-/// // Crate that get the count of logical cores this process could try to use
-/// extern crate num_cpus;  
-/// 
-/// // Get the Hercules struct
-/// use olympus::Hercules; 
-/// 
-/// // Create an instance of Hercules with logical core counts
-/// let hercules = Hercules::new(num_cpus::get());
-/// 
-/// // Push labour to Hercules
-/// hercules.push_labour(|| { println!("Hello world"); });
-/// ```
+// Hercules definition and implementation
+pub mod hercules;
 
-pub struct Hercules {
-    workers: Vec<Worker>,
-    sender: mpsc::Sender<WorkerMessage>,
-}
+// Worker definition and implementation
+pub(in crate::hercules) mod worker;
 
-/// Worker that will execute the labour
-struct Worker {
-    id: usize,
-    thread: Option<thread::JoinHandle<()>>,
-}
+// Work Order definition and implementation
+pub mod work_order;
 
-enum WorkerMessage {
-    NewLabour(Labour),
-    Terminate,
-}
 
-/// Represent a labour that must be performed by Hercules.
-type Labour = Box<dyn FnOnce() + Send + 'static>;
 
 /// Implementations
-mod impl_hercules;
-mod impl_worker;
+//mod impl_hercules;
+//mod impl_worker;
+//mod impl_work_order;
 
 /// Tests
-pub mod test_hercules;
+mod test_hercules;
+
+#[cfg(test)]
+mod test_work_order;

@@ -2,10 +2,15 @@ pub extern crate num_cpus;
 
 /// # Re-export of Hercules for Public API
 #[doc(inline)]
-pub use self::hercules::Hercules;
+pub use self::hercules::hercules::Hercules;
 
+/// # Re-export of WorkOrder for Public API
+#[doc(inline)]
+pub use self::hercules::work_order::WorkOrder;
 
-/// ## Audio and music.
+/// Collection of tools and dependencies abstractions.
+pub mod tools;
+
 /// Apollo is the deity abstraction for audio and music.
 pub mod apollo;
 
