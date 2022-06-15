@@ -26,17 +26,15 @@
 
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-
 use crate::Hercules;
 
-
-/// A Work Order is used to synchronize multiple jobs with Hercules.
+/// A Work Order is used to synchronize multiple labours with Hercules.
 /// 
 /// Some labour needs to be done before another task and the work order
 /// is the tool to achieve that. 
 /// Hercules can handle 1 to many work orders.
 /// 
-/// # Examples
+/// # Example(s)
 ///
 /// ```
 /// // Get olympus tools for core count
@@ -90,7 +88,7 @@ impl<'a> WorkOrder<'a> {
     /// New instance of WorkOrder for referenced Hercules.
     /// 
     /// # Panic
-    /// new() will panic hercules == none
+    /// new() will panic if hercules == `None`
     pub fn new(hercules: Option<&'a Hercules>) -> WorkOrder {
 
         // Make sure that hercules argument is valid, else panic!
@@ -126,10 +124,6 @@ impl<'a> WorkOrder<'a> {
             // Decrement todo
             *todo.lock().unwrap().as_mut() -= 1;
         }));
-
-
-        //let labour = Box::new(labour);
-        //self.hercules.as_ref().unwrap().push_labour(labour);
     }
 
     /// # Descriptions
@@ -143,7 +137,7 @@ impl<'a> WorkOrder<'a> {
     /// 
     /// # Return 
     /// * `WorkOrderWaitResult::Done` - All labours of the work order have been executed.
-    /// * `WorkOrderWaitResult::Timeout` - Waiting has timedout (only if timeout != None).
+    /// * `WorkOrderWaitResult::Timeout` - Waiting has timed out (only if timeout != None).
     pub fn wait(&self, timeout: Option<Duration>) -> WorkOrderWaitResult {
 
         match timeout {
@@ -152,40 +146,23 @@ impl<'a> WorkOrder<'a> {
                 // Time we started to wait
                 let started = Instant::now();
 
-                /*
-                println!("Started={:?}, Now={:?}, Diff={:?}, Timeout={:?}", started, Instant::now(), Instant::now() - started, timeout);
-
-                if Instant::now() - started <= timeout {
-                    println!("NOT TIMEOUT");
-                } else {
-                    println!("TIMEDOUT");
-                }
-
-                println!("Todo={}", *self.todo.lock().unwrap().as_ref());
-                */
-
                 // Waiting loop
-                while *self.todo.lock().unwrap().as_ref() > 0 && Instant::now() - started <= timeout { 
-                    //println!("Todo={}", *self.todo.lock().unwrap().as_ref());
-                    //println!("Started={:?}, Now={:?}, Diff={:?}, Timeout={:?}", started, Instant::now(), Instant::now() - started, timeout);
-                }
+                while *self.todo.lock().unwrap().as_ref() > 0 && Instant::now() - started <= timeout { }
 
+                // Verify if waiting has timed out
                 if Instant::now() - started > timeout {
                     // Return Timeout as result
                     return WorkOrderWaitResult::Timeout;
                 }
-                
-
             },
             None => {
-                // Waiting loop
+                // Waiting loop (Can run indefinitely since no timeout specified.)
                 while *self.todo.lock().unwrap().as_ref() > 0 {}        
             },
         }
 
         // All jobs are done
         WorkOrderWaitResult::Done
-
     }
 
     /// # Descriptions

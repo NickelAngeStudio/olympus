@@ -36,14 +36,14 @@ pub(in crate::hercules) mod worker;
 pub mod work_order;
 
 
-
-/// Implementations
-//mod impl_hercules;
-//mod impl_worker;
-//mod impl_work_order;
-
-/// Tests
+// Hercules Tests
+#[cfg(test)]
 mod test_hercules;
 
+// Work order Tests
 #[cfg(test)]
-mod test_work_order;
+pub mod test_work_order;
+
+// Worker Tests
+#[cfg(test)]
+mod test_worker;
