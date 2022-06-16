@@ -54,17 +54,19 @@ impl Worker {
     pub fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<WorkerMessage>>>) -> Worker {
 
         let thread = thread::spawn(move || loop {
-            // Worker is waiting for a job
-            let message = receiver.lock().unwrap().recv().unwrap();
 
-            match message {
-                WorkerMessage::NewLabour(labour) => {
-                    labour();
+            if let Ok(message) = receiver.lock().unwrap().recv() {
+                match message {
+                    WorkerMessage::NewLabour(labour) => {
+                        labour();
+                    }
+                    WorkerMessage::Terminate => {
+                        break;
+                    }
                 }
-                WorkerMessage::Terminate => {
-                    break;
-                }
-            }
+            } else {
+                panic!("Worker : Error occurred when syncing message!");
+            }            
         });
 
         Worker {
