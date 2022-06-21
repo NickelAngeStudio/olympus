@@ -13,3 +13,4 @@ license = "MIT"
 
 [dependencies]
 num_cpus = "1.13.1"
+rand = "0.8.5"

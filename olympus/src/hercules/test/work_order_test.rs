@@ -1,7 +1,7 @@
 /*
- * @file hercules/test_work_order.rs
+ * @file hercules/test/test_work_order.rs
  *
- * @module olympus::hercules
+ * @module olympus::hercules::test
  *
  * @brief Contains unit tests for Work Order struct.
  * 
@@ -20,18 +20,16 @@
  * 
  * @todo
  */
-use crate::Hercules;
-use crate::WorkOrder;
+use crate::hercules::{Taskmaster, TaskmasterNewOptions, WorkOrder, WorkOrderWaitResult};
 use crate::tools;
 use std::time::{Duration};
 use std::{thread};
-use super::work_order::WorkOrderWaitResult;
 
 // Count of labor used to test
 static LABOUR_COUNT: usize = 65536;
 
-// How many Hercules we create
-static HERCULES_COUNT: usize = 16;
+// How many Taskmaster we create
+static TSM_COUNT: usize = 16;
 
 // How many time we add and wait
 static ADD_AND_WAIT_COUNT: usize = 16;
@@ -41,7 +39,7 @@ static WORK_ORDER_COUNT: usize = 64;
 
 // Stress test parameters
 static STRESS_COUNT: usize = 256;
-static STRESS_HERCULES_COUNT: usize = 4;
+static STRESS_TASKMASTER_COUNT: usize = 4;
 static STRESS_WO_COUNT: usize = 8;
 static STRESS_LABOUR_COUNT: usize = 4096;
 static STRESS_LOOP_N: usize = 4096;
@@ -49,19 +47,19 @@ static STRESS_LOOP_N: usize = 4096;
 
 #[test]
 #[should_panic]
-/// Test that a WorkOrder can't be created without a valid Hercules reference.
-fn create_work_order_no_hercules() {
+/// Test that a WorkOrder can't be created without a valid Taskmaster reference.
+fn create_work_order_no_taskmaster() {
 
     let _wo = WorkOrder::new(None);
 }
 
 
 #[test]
-/// Create a Work Order for Hercules then add labours to it.
+/// Create a Work Order for Taskmaster then add labours to it.
 fn create_work_order_then_wait() {
 
-    let hercules = Hercules::new(tools::get_logical_core_count());
-    let wo = WorkOrder::new(Some(&hercules));
+    let tsm = Taskmaster::new(TaskmasterNewOptions::MaximumWorkers);
+    let wo = WorkOrder::new(Some(&tsm));
 
     // Add fn to work order
     add_fn_to_work_order(&wo, LABOUR_COUNT, 500);
@@ -76,8 +74,8 @@ fn create_work_order_then_wait() {
 /// Create a Work Order that WILL Timeout.
 fn create_work_order_with_timeout() {
 
-    let hercules = Hercules::new(tools::get_logical_core_count());
-    let wo = WorkOrder::new(Some(&hercules));
+    let tsm = Taskmaster::new(TaskmasterNewOptions::MaximumWorkers);
+    let wo = WorkOrder::new(Some(&tsm));
 
     // Block all threads for 2 secs
     for _ in 0..tools::get_logical_core_count() {
@@ -94,8 +92,8 @@ fn create_work_order_with_timeout() {
 #[test]
 /// Adding labours after waiting, repeat 'ADD_AND_WAIT_COUNT' times
 fn add_labour_after_waiting() {
-    let hercules = Hercules::new(tools::get_logical_core_count());
-    let wo = WorkOrder::new(Some(&hercules));
+    let tsm = Taskmaster::new(TaskmasterNewOptions::MaximumWorkers);
+    let wo = WorkOrder::new(Some(&tsm));
 
     // Add labours and wait 'ADD_AND_WAIT_COUNT' times
     for i in 0..ADD_AND_WAIT_COUNT {
@@ -112,7 +110,7 @@ fn add_labour_after_waiting() {
 /// Multiple work orders, up to 'WORK_ORDER_COUNT'
 fn handle_multiple_work_orders() {
 
-    test_multiple_hercules_and_multiple_work_order(1, WORK_ORDER_COUNT, LABOUR_COUNT,
+    test_multiple_taskmaster_and_multiple_work_order(1, WORK_ORDER_COUNT, LABOUR_COUNT,
          500, Some(Duration::from_secs(5)), true);
     
 }
@@ -120,10 +118,10 @@ fn handle_multiple_work_orders() {
 
 #[test]
 #[ignore]
-/// Multiple work orders and hercules. (long duration)
-fn handle_multiple_work_orders_and_hercules() {
+/// Multiple work orders and taskmasters. (long duration)
+fn handle_multiple_work_orders_and_taskmaster() {
 
-    test_multiple_hercules_and_multiple_work_order(HERCULES_COUNT, WORK_ORDER_COUNT, LABOUR_COUNT,
+    test_multiple_taskmaster_and_multiple_work_order(TSM_COUNT, WORK_ORDER_COUNT, LABOUR_COUNT,
         500, Some(Duration::from_secs(5)), true);
 
 }
@@ -136,7 +134,7 @@ fn work_order_stress_test() {
     // Test multiple time to try to trigger memory leaks or crashes
     for i in 0..STRESS_COUNT {
         println!("Stress #{} of {}...", i+1, STRESS_COUNT);
-        test_multiple_hercules_and_multiple_work_order(STRESS_HERCULES_COUNT, STRESS_WO_COUNT, STRESS_LABOUR_COUNT,
+        test_multiple_taskmaster_and_multiple_work_order(STRESS_TASKMASTER_COUNT, STRESS_WO_COUNT, STRESS_LABOUR_COUNT,
             STRESS_LOOP_N, Some(Duration::from_secs(5)), false);
     }
 
@@ -164,10 +162,10 @@ pub fn add_fn_to_work_order(wo:&WorkOrder, fn_count:usize, loop_n : usize){
 pub fn work_order_wait_or_panic(wo:&WorkOrder, timeout: Option<Duration>) -> WorkOrderWaitResult{
 
     match wo.wait(timeout) {
-        super::work_order::WorkOrderWaitResult::Done => {
+        WorkOrderWaitResult::Done => {
 
         },
-        super::work_order::WorkOrderWaitResult::Timeout => {
+        WorkOrderWaitResult::Timeout => {
             panic!("work_order_wait_or_panic() timed out!");
         },
     }
@@ -177,31 +175,31 @@ pub fn work_order_wait_or_panic(wo:&WorkOrder, timeout: Option<Duration>) -> Wor
 }
 
 // Fn that test 1..n Hercules with 1..n work orders adding fn_count fn of loop_n size with timeout option
-fn test_multiple_hercules_and_multiple_work_order(hercules_count: usize, work_order_count: usize, fn_count:usize, loop_n:usize, timeout: Option<Duration>, verbose: bool){
+fn test_multiple_taskmaster_and_multiple_work_order(tsm_count: usize, work_order_count: usize, fn_count:usize, loop_n:usize, timeout: Option<Duration>, verbose: bool){
 
-    let mut h_vec: Vec<Hercules> = Vec::with_capacity(hercules_count);
-    let mut wo_vec: Vec<WorkOrder> = Vec::with_capacity(work_order_count * hercules_count);
+    let mut h_vec: Vec<Taskmaster> = Vec::with_capacity(tsm_count);
+    let mut wo_vec: Vec<WorkOrder> = Vec::with_capacity(work_order_count * tsm_count);
 
-    // Create Hercules
-    for i in 0..hercules_count {
+    // Create Taskmasters
+    for i in 0..tsm_count {
         if verbose {
-            println!("Hercules#{} : creating...", i+1);
+            println!("Taskmaster#{} : creating...", i+1);
         }
-        h_vec.push(Hercules::new(tools::get_logical_core_count()));
+        h_vec.push(Taskmaster::new(TaskmasterNewOptions::MaximumWorkers));
     }
 
-    // Create Hercules Work Orders
-    for i in 0..hercules_count {
+    // Create Taskmaster Work Orders
+    for i in 0..tsm_count {
         for j in 0..work_order_count {
             if verbose {
-                println!("Hercules#{} : WO#{} creating...", i+1, j+1);
+                println!("Taskmaster#{} : WO#{} creating...", i+1, j+1);
             }
             wo_vec.push(WorkOrder::new(Some(&h_vec[i])));
         }
     }
 
     // Add labours in all WO
-    for i in 0..work_order_count * hercules_count {
+    for i in 0..work_order_count * tsm_count {
         if verbose {
             println!("WO#{} : adding labours...", i+1);
         }
@@ -209,7 +207,7 @@ fn test_multiple_hercules_and_multiple_work_order(hercules_count: usize, work_or
     }
 
     // Wait all WO
-    for i in 0..work_order_count * hercules_count {
+    for i in 0..work_order_count * tsm_count {
         if verbose {
             println!("WO#{} : waiting...", i+1);
         }

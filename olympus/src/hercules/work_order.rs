@@ -1,7 +1,7 @@
 /*
  * @file hercules/work_order.rs
  *
- * @module olympus::hercules::work_order
+ * @module olympus::hercules
  *
  * @brief Contains definition and implementation of work order.
  * 
@@ -24,34 +24,36 @@
  * @todo
  */
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
+use std::sync::atomic::AtomicUsize;
 use std::time::{Duration, Instant};
-use crate::Hercules;
+use crate::hercules::Taskmaster;
 
-/// A Work Order is used to synchronize multiple labours with Hercules.
+/// ##### Struct used to synchronize a batch of labours.
 /// 
-/// Some labour needs to be done before another task and the work order
-/// is the tool to achieve that. 
-/// Hercules can handle 1 to many work orders.
+/// The Work order is used to synchronize a batch of labours.
+/// To do so, use [`WorkOrder::add_labour()`](struct.WorkOrder.html#method.add_labour) to add 0..N labours
+/// to the work order then use [`WorkOrder::wait()`](struct.WorkOrder.html#method.wait) to block the thread
+/// until ALL jobs added in the work order are executed.
+/// 
+/// A wait [`Duration`](std::time::Duration) can be added to prevent infinite waiting.
+/// 
+/// Work order can be reused anytime after wait().
 /// 
 /// # Example(s)
 ///
 /// ```
-/// // Get olympus tools for core count
-/// use olympus::tools; 
-/// 
-/// // Get the Hercules and WorkOrder structs
-/// use olympus::Hercules; 
-/// use olympus::WorkOrder;
+/// // Get the Taskmaster and WorkOrder structs and enum
+/// use olympus::hercules::{Taskmaster, TaskmasterNewOptions, WorkOrder, WorkOrderWaitResult}; 
 /// 
 /// // For wait duration
 /// use std::time::Duration;
 /// 
-/// // Create an instance of Hercules with logical core counts
-/// let hercules = Hercules::new(tools::get_logical_core_count());
+/// // Create an instance of Taskmaster with logical core counts
+/// let tsm = Taskmaster::new(TaskmasterNewOptions::MaximumWorkers);
 /// 
-/// // Create a Work Order for Hercules
-/// let wo = WorkOrder::new(Some(&hercules));
+/// // Create a Work Order for Taskmaster
+/// let wo = WorkOrder::new(Some(&tsm));
 /// 
 /// // Add labours to the work order
 /// wo.add_labour(move || { println!("Labour1"); });
@@ -59,48 +61,53 @@ use crate::Hercules;
 /// wo.add_labour(move || { println!("Labour3"); });
 /// 
 /// // Wait 'Duration' for the order to be finished.
-/// wo.wait(Some(Duration::from_secs(5)));
+/// match wo.wait(Some(Duration::from_secs(5))) {
+///     // All labours have been executed
+///     WorkOrderWaitResult::Done => {
+///         println!("All work order jobs finished!");
+///     },
+/// 
+///     // Wait duration has expired
+///     WorkOrderWaitResult::Timeout => {
+///         panic!("Wait duration expired!");
+///     }
+/// }
 /// ```
 pub struct  WorkOrder<'a> {
-    hercules: Option<&'a Hercules>,             // Unmutable reference to Hercules (or none)
-    todo: WorkOrderTodo,                        // Labours left to do in the Work Order
+    taskmaster: Option<&'a Taskmaster>,    // Unmutable reference to Taskmaster (or none)
+    todo: Arc<AtomicUsize>,                // Labours left to do in the Work Order
 }
 
-/// Wait result returned with work_order.wait()
+/// Enum used as result returned from [`WorkOrder::wait()`](struct.WorkOrder.html#method.wait).
 pub enum WorkOrderWaitResult {
-    Done,                     // All labours have been done
-    Timeout                   // Waiting has timedout
+    /// All added labours have been executed.
+    Done, 
+    
+    /// Duration has expired.
+    Timeout
 }
-
-
-// Work Order labours remaining type
-type WorkOrderTodo = Arc<Mutex<Box<usize>>>;
-
 
 impl<'a> WorkOrder<'a> {
     /// # Description
-    /// Create a new instance of WorkOrder for referenced Hercules.
+    /// Create a new instance of WorkOrder for referenced Taskmaster.
     /// 
     /// # Argument(s)
-    /// * `hercules` - Hercules to push work order labours to.
+    /// * `taskmaster` - [`Taskmaster`](struct.Taskmaster.html) to push work order labours to.
     /// 
     /// # Return
-    /// New instance of WorkOrder for referenced Hercules.
+    /// New instance of WorkOrder for referenced Taskmaster.
     /// 
     /// # Panic
-    /// new() will panic if hercules == `None`
-    pub fn new(hercules: Option<&'a Hercules>) -> WorkOrder {
+    /// new() will panic if taskmaster == `None`
+    pub fn new(taskmaster: Option<&'a Taskmaster>) -> WorkOrder {
 
-        // Make sure that hercules argument is valid, else panic!
-        if let None = hercules {
-            panic!("WorkOrder::new() - hercules argument can't be None");
+        // Make sure that taskmaster argument is valid, else panic!
+        if let None = taskmaster {
+            panic!("WorkOrder::new() - Taskmaster argument can't be None");
         }
 
-        // Shared count of labours to do.
-        let todo = Arc::new(Mutex::new(Box::new(0 as usize)));
-
         // Return new WorkOrder
-        WorkOrder { hercules, todo }
+        WorkOrder { taskmaster, todo: Arc::new(AtomicUsize::new(0)) }
     }
 
     /// # Description
@@ -114,15 +121,15 @@ impl<'a> WorkOrder<'a> {
     {
         let todo = self.todo.clone();
 
-        // Increment todo
-        *todo.lock().unwrap().as_mut() += 1;
+        // Increment todos
+        todo.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-        self.hercules.as_ref().unwrap().push_labour(Box::new(move || {
+        self.taskmaster.as_ref().unwrap().push_labour(Box::new(move || {
             // Execute labour
             f();
 
             // Decrement todo
-            *todo.lock().unwrap().as_mut() -= 1;
+            todo.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
         }));
     }
 
@@ -132,12 +139,11 @@ impl<'a> WorkOrder<'a> {
     /// # Argument(s)
     /// * `timeout` - Max waiting time. Will return `WorkOrderWaitResult::Timeout` status if reached.
     /// 
-    /// # Note(s)
+    /// # Warning(s)
     /// If `timeout` is set to None, this function might run indefinitely.
     /// 
     /// # Return 
-    /// * `WorkOrderWaitResult::Done` - All labours of the work order have been executed.
-    /// * `WorkOrderWaitResult::Timeout` - Waiting has timed out (only if timeout != None).
+    /// * [`WorkOrderWaitResult`](enum.WorkOrderWaitResult.html) result of waiting.
     pub fn wait(&self, timeout: Option<Duration>) -> WorkOrderWaitResult {
 
         match timeout {
@@ -147,7 +153,7 @@ impl<'a> WorkOrder<'a> {
                 let started = Instant::now();
 
                 // Waiting loop
-                while *self.todo.lock().unwrap().as_ref() > 0 && Instant::now() - started <= timeout { }
+                while self.todo.load(std::sync::atomic::Ordering::Relaxed) > 0 && Instant::now() - started <= timeout { }
 
                 // Verify if waiting has timed out
                 if Instant::now() - started > timeout {
@@ -156,8 +162,8 @@ impl<'a> WorkOrder<'a> {
                 }
             },
             None => {
-                // Waiting loop (Can run indefinitely since no timeout specified.)
-                while *self.todo.lock().unwrap().as_ref() > 0 {}        
+                // Waiting loop (Can run indefinitely since no timeout specified.)  
+                while self.todo.load(std::sync::atomic::Ordering::Relaxed) > 0 {}        
             },
         }
 
@@ -171,7 +177,7 @@ impl<'a> WorkOrder<'a> {
     /// # Return 
     /// Count of remaining labour to do.
     pub fn get_labour_remaining(&self) -> usize {
-        *self.todo.lock().unwrap().as_ref()
+        self.todo.load(std::sync::atomic::Ordering::Relaxed)
     }
 
 }

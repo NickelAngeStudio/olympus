@@ -1,32 +1,35 @@
-pub extern crate num_cpus;
-
-/// # Re-export of Hercules for Public API
-#[doc(inline)]
-pub use self::hercules::hercules::Hercules;
-
-/// # Re-export of WorkOrder for Public API
-#[doc(inline)]
-pub use self::hercules::work_order::WorkOrder;
+//! Olympus is a simple, abstracted game engine.
+// TODO: Fill Olympus description for crate
 
 /// Collection of tools and dependencies abstractions.
+#[doc(hidden)]
 pub mod tools;
 
-/// Apollo is the deity abstraction for audio and music.
+/// # God of audio and music.
 pub mod apollo;
 
-/// ## Stage and location.
+/// # God of cartography, stage and maps.
 pub mod atlas;
 
-/// ## Tasks and jobs.
-#[doc(hidden)]
+/// # God of secrets and confidentiality.
+/// 
+/// 
+pub mod harpocrates;
+
+/// # God of multi-threaded labours.
+/// 
+/// [`Hercules`](https://en.wikipedia.org/wiki/Hercules) (/ˈhɜːrkjʊˌliːz/, US: /-kjə-/) is the Roman equivalent of the Greek divine hero Heracles, 
+/// son of Jupiter and the mortal Alcmene. In classical mythology, Hercules is famous for his strength and for his numerous far-ranging adventures 
+/// including his 12 labours.
+/// 
+/// Hercules supplies `Taskmaster` as a taskpool and `WorkOrder` for tasks sync.
 pub mod hercules;
 
-/// ## Internet and multiplayer.
+/// # Goddess of messages and communication.
 pub mod iris;
 
-/// ## I/O, events and secrets.
-/// Kleio is the deity abstraction for file I/O, events and encryption.
+/// # Goddess of history and events. 
 pub mod kleio;
 
-/// ## Video rendering.
+/// # God of fire and video frame crafting.
 pub mod vulcan;

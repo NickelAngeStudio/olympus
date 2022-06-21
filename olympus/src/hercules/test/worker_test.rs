@@ -1,7 +1,7 @@
 /*
- * @file hercules/test_worker.rs
+ * @file hercules/test/test_worker.rs
  *
- * @module olympus::hercules::worker
+ * @module olympus::hercules::test
  *
  * @brief Contains unit tests for Worker struct.
  * 
@@ -22,7 +22,7 @@
  */
 
 use std::sync::{mpsc::{self, Sender}, Arc, Mutex};
-use super::worker::{Worker, WorkerMessage};
+use super::super::worker::{Worker, WorkerMessage};
 
 // Count of labor used to test
 static LABOUR_COUNT: usize = 4096;

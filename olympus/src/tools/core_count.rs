@@ -14,6 +14,9 @@ extern crate num_cpus;
 /// ```
 /// # Return
 /// Count of logical cores or 1 if not available
+/// 
+/// # Reference(s)
+/// [https://www.cgdirector.com/cpu-cores-vs-logical-processors-threads/](https://www.cgdirector.com/cpu-cores-vs-logical-processors-threads/)
 pub fn get_logical_core_count() -> usize {
     num_cpus::get()
 }

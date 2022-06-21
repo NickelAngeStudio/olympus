@@ -3,11 +3,10 @@
  *
  * @module olympus::hercules
  *
- * @brief Contains header of Hercules, Worker, WorkerMessage and WorkOrder
+ * @brief Contains header of API interface for hercules components.
  * 
  * @details
- * Contains header of struct Hercules, Worker, WorkerMessage and WorkOrder.
- * Implementation are in impl_hercules.rs, impl_worker.rs and impl_work_order.rs
+ * Contains header of API interface for hercules components.
  *
  * @author Mathieu Grenier
  * @copyright NickelAnge.Studio
@@ -18,32 +17,34 @@
  * 1.0 : 2022-06-08 | Mathieu Grenier | Code creation
  *
  * @ref
- * The Rust Programming Language guide : https://doc.rust-lang.org/book/ch20-02-multithreaded.html
  * 
  * @todo
- * Implement WorkOrder.
- * Document that closure are given when using push_labour
  */
 
 
-// Hercules definition and implementation
-pub mod hercules;
+ /// # Re-export of Taskmaster for Public API
+#[doc(inline)]
+pub use taskmaster::Taskmaster as Taskmaster;
+pub use taskmaster::TaskmasterNewOptions as TaskmasterNewOptions;
+
+ /// # Re-export of Work Order for Public API
+ #[doc(inline)]
+//pub use work_order::{WorkOrder, WorkOrderWaitResult} as hercules;
+pub use work_order::WorkOrder as WorkOrder;
+pub use work_order::WorkOrderWaitResult as WorkOrderWaitResult;
+
+// Taskmaster definition and implementation
+#[doc(hidden)]
+pub mod taskmaster;
 
 // Worker definition and implementation
+#[doc(hidden)]
 pub(in crate::hercules) mod worker;
 
 // Work Order definition and implementation
+#[doc(hidden)]
 pub mod work_order;
 
-
-// Hercules Tests
+// hercules module tests
 #[cfg(test)]
-mod test_hercules;
-
-// Work order Tests
-#[cfg(test)]
-pub mod test_work_order;
-
-// Worker Tests
-#[cfg(test)]
-mod test_worker;
+mod test;

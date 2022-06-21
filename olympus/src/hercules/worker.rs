@@ -6,7 +6,7 @@
  * @brief Contains definition and implementation of Worker used to execute labour.
  * 
  * @details
- * Contains header of Worker used to execute labour. Hercules need 1..N worker
+ * Contains header of Worker used to execute labour. Taskmaster need 1..N worker
  * to execute his labours.
  *
  * @author Mathieu Grenier
@@ -37,7 +37,7 @@ pub enum WorkerMessage {
     Terminate,                                  // Tell the worker to terminate and join the thread
 }
 
-/// Represent a labour that must be performed by Hercules.
+/// Represent a labour that must be performed by the Taskmaster.
 type Labour = Box<dyn FnOnce() + Send + 'static>;
 
 /// Implementation of worker
@@ -54,19 +54,19 @@ impl Worker {
     pub fn new(id: usize, receiver: Arc<Mutex<mpsc::Receiver<WorkerMessage>>>) -> Worker {
 
         let thread = thread::spawn(move || loop {
+            
+            let message = receiver.lock().unwrap().recv().unwrap();
 
-            if let Ok(message) = receiver.lock().unwrap().recv() {
-                match message {
-                    WorkerMessage::NewLabour(labour) => {
-                        labour();
-                    }
-                    WorkerMessage::Terminate => {
-                        break;
-                    }
+            match message {
+                WorkerMessage::NewLabour(labour) => {
+                    labour();
                 }
-            } else {
-                panic!("Worker : Error occurred when syncing message!");
-            }            
+                WorkerMessage::Terminate => {
+                    break;
+                }
+            }
+
+
         });
 
         Worker {
