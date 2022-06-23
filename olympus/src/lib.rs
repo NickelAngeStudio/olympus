@@ -2,7 +2,6 @@
 // TODO: Fill Olympus description for crate
 
 /// Collection of tools and dependencies abstractions.
-#[doc(hidden)]
 pub mod tools;
 
 /// # God of audio and music.
@@ -13,8 +12,18 @@ pub mod atlas;
 
 /// # God of secrets and confidentiality.
 /// 
+/// [`Harpocrates`](https://en.wikipedia.org/wiki/Harpocrates) (Ancient Greek: Ἁρποκράτης) was the god of silence, secrets and confidentiality in the Hellenistic religion developed in 
+/// Ptolemaic Alexandria (and also an embodiment of hope, according to Plutarch). Harpocrates was adapted by the Greeks from the Egyptian 
+/// child god Horus, who represented the newborn sun, rising each day at dawn. Horus is represented as a naked boy with his finger to his mouth, a 
+/// realisation of the hieroglyph for "child". Misunderstanding this gesture, the later Greeks and Roman poets made Harpocrates the god of 
+/// silence and secrecy.
 /// 
+/// Harpocrates provide 2 traits used to cypher and decypher buffers and 1 trait to hide information in memory.
+/// 
+/// # Diagram
+/// TODO: Add SVGZ link
 pub mod harpocrates;
+
 
 /// # God of multi-threaded labours.
 /// 
@@ -23,6 +32,11 @@ pub mod harpocrates;
 /// including his 12 labours.
 /// 
 /// Hercules supplies `Taskmaster` as a taskpool and `WorkOrder` for tasks sync.
+/// 
+/// # Diagram
+/// TODO: Add SVGZ link
+
+
 pub mod hercules;
 
 /// # Goddess of messages and communication.
