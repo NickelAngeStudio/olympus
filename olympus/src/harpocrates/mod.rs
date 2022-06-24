@@ -28,7 +28,6 @@ pub use buffer::generate_buffer as generate_buffer;
 pub use buffer::wipe_buffer as wipe_buffer;
 pub use buffer::buffer_generator_charset as buffer_generator_charset;
 
-pub use buffer::say_hello;
 
 // Buffer related functions
 #[doc(hidden)]

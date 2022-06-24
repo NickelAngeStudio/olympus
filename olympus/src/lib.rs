@@ -2,6 +2,7 @@
 // TODO: Fill Olympus description for crate
 
 /// Collection of tools and dependencies abstractions.
+#[doc(hidden)]
 pub mod tools;
 
 /// # God of audio and music.

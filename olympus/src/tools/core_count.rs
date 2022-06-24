@@ -1,3 +1,29 @@
+/*
+ * @file tools/core_count.rs
+ *
+ * @module olympus::tools
+ *
+ * @brief Contains abstraction function used to get the logical core count.
+ * 
+ * @details
+ * Contains abstraction function used to get the logical core count.
+ * 
+ * Depedencies should be abstracted as much as possible bacause a new solution can arise
+ * or they can stop being maintained.
+ *
+ * @author Mathieu Grenier
+ * @copyright NickelAnge.Studio
+ *
+ * @date 2022-06-10
+ *
+ * @version
+ * 1.0 : 2022-06-10 | Mathieu Grenier | Code creation
+ *
+ * @ref
+ * 
+ * @todo
+ */
+
 
 /// Dependency crate used to get logical core count
 extern crate num_cpus;
@@ -14,6 +40,9 @@ extern crate num_cpus;
 /// ```
 /// # Return
 /// Count of logical cores or 1 if not available
+/// 
+/// # Note(s)
+/// Uses crate [`num_cpus`]
 /// 
 /// # Reference(s)
 /// [https://www.cgdirector.com/cpu-cores-vs-logical-processors-threads/](https://www.cgdirector.com/cpu-cores-vs-logical-processors-threads/)
