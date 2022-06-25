@@ -37,6 +37,9 @@ static ADD_AND_WAIT_COUNT: usize = 16;
 // How many work order we create
 static WORK_ORDER_COUNT: usize = 64;
 
+// Max waiting time (2 mins)
+static MAX_WAIT_TIME: Duration = Duration::from_secs(120);
+
 // Stress test duration in seconds (5 mins)
 static STRESS_DURATION: Duration = Duration::from_secs(300); 
 
@@ -66,8 +69,22 @@ fn create_work_order_then_wait() {
     // Add fn to work order
     add_fn_to_work_order(&wo, LABOUR_COUNT, 500);
 
-    // Wait a max of 5 secs. Panic if more than 5 secs.
-    work_order_wait_or_panic(&wo, Some(Duration::from_secs(5)));    
+    // Wait a max of MAX_WAIT_TIME secs. Panic if more than MAX_WAIT_TIME secs.
+    work_order_wait_or_panic(&wo, Some(MAX_WAIT_TIME));    
+}
+
+#[test]
+/// Create a Work Order for Taskmaster then add labours to it. No wait limit.
+fn create_work_order_then_wait_no_limit() {
+
+    let tsm = Taskmaster::new(TaskmasterNewOptions::MaximumWorkers);
+    let wo = WorkOrder::new(Some(&tsm));
+
+    // Add fn to work order
+    add_fn_to_work_order(&wo, LABOUR_COUNT, 500);
+
+    // Wait without time limit.
+    work_order_wait_or_panic(&wo, None);    
 }
 
 
@@ -103,7 +120,7 @@ fn add_labour_after_waiting() {
         add_fn_to_work_order(&wo, LABOUR_COUNT, 500);
 
         println!("Loop #{} : Wait 5 secs max...", i+1);
-        work_order_wait_or_panic(&wo, Some(Duration::from_secs(5)));    
+        work_order_wait_or_panic(&wo, Some(MAX_WAIT_TIME));    
     }
 }
 
@@ -113,7 +130,7 @@ fn add_labour_after_waiting() {
 fn handle_multiple_work_orders() {
 
     test_multiple_taskmaster_and_multiple_work_order(1, WORK_ORDER_COUNT, LABOUR_COUNT,
-         500, Some(Duration::from_secs(5)), true);
+         500, Some(MAX_WAIT_TIME), true);
     
 }
 
@@ -124,7 +141,7 @@ fn handle_multiple_work_orders() {
 fn handle_multiple_work_orders_and_taskmaster() {
 
     test_multiple_taskmaster_and_multiple_work_order(TSM_COUNT, WORK_ORDER_COUNT, LABOUR_COUNT,
-        500, Some(Duration::from_secs(5)), true);
+        500, Some(MAX_WAIT_TIME), true);
 
 }
 
@@ -147,7 +164,7 @@ fn work_order_stress_test() {
         });
         
         test_multiple_taskmaster_and_multiple_work_order(STRESS_TASKMASTER_COUNT, STRESS_WO_COUNT, STRESS_LABOUR_COUNT,
-            STRESS_LOOP_N, Some(Duration::from_secs(5)), false);
+            STRESS_LOOP_N, Some(MAX_WAIT_TIME), false);
     }
 
 }
