@@ -119,6 +119,9 @@ pub fn generate_buffer(rng : &mut impl rand::Rng, size : usize, charset: u8) -> 
 /// ##### Buffer generator flags used to provide character sets when generating buffer.
 /// # Example(s)
 /// ```
+/// // Import `buffer_generator_charset`
+/// use olympus::harpocrates::buffer_generator_charset;
+/// 
 /// // Create a charset that will use numbers, lower case and symbols
 /// let charset : u8 = buffer_generator_charset::NUMBER | buffer_generator_charset::LOWER_CASE | buffer_generator_charset::SYMBOL;
 /// ```

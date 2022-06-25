@@ -39,6 +39,9 @@
 /// 
 /// # Example(s)
 /// ```
+/// // Import macro
+/// use olympus::copy_slices;
+/// 
 /// // Creating 1 destination and 2 sources
 /// let mut dst = vec!(0,0,0,0,0,0);
 /// let src0 = vec!(1,2,3,4);
