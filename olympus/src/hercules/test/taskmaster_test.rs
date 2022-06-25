@@ -42,8 +42,8 @@ static LABOUR_COUNT: usize = 65535;
 // Loop size when calc
 static LOOP_SIZE: usize = 1024;
 
-// Stress test duration in seconds (10 mins)
-static STRESS_DURATION: Duration = Duration::from_secs(600); 
+// Stress test duration in seconds (5 mins)
+static STRESS_DURATION: Duration = Duration::from_secs(300); 
 
 
 #[test]

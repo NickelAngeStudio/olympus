@@ -21,7 +21,7 @@
  * @todo
  */
 
-use std::sync::{mpsc::{self, Sender}, Arc, Mutex};
+use std::{sync::{mpsc::{self, Sender}, Arc, Mutex}, time::{Duration, Instant}};
 use super::super::worker::{Worker, WorkerMessage};
 
 // Count of labor used to test
@@ -31,10 +31,10 @@ static LABOUR_COUNT: usize = 4096;
 static LOOP_COUNT: usize = 256;
 
 // Number of workers for multiple workers test
-static WORKER_COUNT: usize = 4096;
+static WORKER_COUNT: usize = 1024;
 
-// Count of stress tests
-static STRESS_COUNT: usize = 256;
+// Stress test duration in seconds (2 mins)
+static STRESS_DURATION: Duration = Duration::from_secs(120); 
 
 #[test]
 /// Create a worker with a receiver and send a terminate message.
@@ -82,12 +82,24 @@ fn create_multiple_workers_with_receiver_push_labours() {
 #[ignore]
 /// Stress test worker
 fn stress_test_worker() {
-    for i in 0..STRESS_COUNT {
-        println!("Stress #{} of {}...", i+1, STRESS_COUNT);
+
+    let mut stress_loop = 0;
+    let started = Instant::now();
+
+    while Instant::now() - started <= STRESS_DURATION {    
+        stress_loop += 1;
+        
+        println!("Stress #{} | Remaining time : {:?}...", stress_loop , if  Instant::now() - started < STRESS_DURATION {
+            STRESS_DURATION - (Instant::now() - started)
+        } else {
+            Duration::from_secs(0)
+        });
+
         create_worker_with_receiver();
         create_worker_with_receiver_push_labours();
         create_multiple_workers_with_receiver_push_labours();
     }
+
 }
 
 

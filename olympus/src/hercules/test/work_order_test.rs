@@ -22,7 +22,7 @@
  */
 use crate::hercules::{Taskmaster, TaskmasterNewOptions, WorkOrder, WorkOrderWaitResult};
 use crate::tools;
-use std::time::{Duration};
+use std::time::{Duration, Instant};
 use std::{thread};
 
 // Count of labor used to test
@@ -37,8 +37,10 @@ static ADD_AND_WAIT_COUNT: usize = 16;
 // How many work order we create
 static WORK_ORDER_COUNT: usize = 64;
 
+// Stress test duration in seconds (5 mins)
+static STRESS_DURATION: Duration = Duration::from_secs(300); 
+
 // Stress test parameters
-static STRESS_COUNT: usize = 256;
 static STRESS_TASKMASTER_COUNT: usize = 4;
 static STRESS_WO_COUNT: usize = 8;
 static STRESS_LABOUR_COUNT: usize = 4096;
@@ -132,8 +134,18 @@ fn handle_multiple_work_orders_and_taskmaster() {
 /// Stress test. (really long duration)
 fn work_order_stress_test() {
     // Test multiple time to try to trigger memory leaks or crashes
-    for i in 0..STRESS_COUNT {
-        println!("Stress #{} of {}...", i+1, STRESS_COUNT);
+    let mut stress_loop = 0;
+    let started = Instant::now();
+
+    while Instant::now() - started <= STRESS_DURATION {    
+        stress_loop += 1;
+        
+        println!("Stress #{} | Remaining time : {:?}...", stress_loop , if  Instant::now() - started < STRESS_DURATION {
+            STRESS_DURATION - (Instant::now() - started)
+        } else {
+            Duration::from_secs(0)
+        });
+        
         test_multiple_taskmaster_and_multiple_work_order(STRESS_TASKMASTER_COUNT, STRESS_WO_COUNT, STRESS_LABOUR_COUNT,
             STRESS_LOOP_N, Some(Duration::from_secs(5)), false);
     }
