@@ -121,7 +121,11 @@ fn taskmaster_stress_test() {
         let loop_size = rng.gen_range(0..LOOP_SIZE);
 
         println!("Stress #{} | Workers={}/{} | Batch={}/{} | Loop={}/{} | Remaining time : {:?}...", stress_loop, wsize, core_count,
-            batch_size, LABOUR_COUNT, loop_size, LOOP_SIZE, STRESS_DURATION - (Instant::now() - started));
+            batch_size, LABOUR_COUNT, loop_size, LOOP_SIZE, if  Instant::now() - started < STRESS_DURATION {
+                STRESS_DURATION - (Instant::now() - started)
+            } else {
+                Duration::from_secs(0)
+            });
 
         {
             // Create Taskmaster with Core count
