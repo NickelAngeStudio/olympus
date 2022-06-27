@@ -25,10 +25,6 @@
  #[cfg(test)]
  mod buffer_test;
 
-// Secret Tests
-#[cfg(test)]
-mod secret_test;
-
  // Cypher Tests
 #[cfg(test)]
 mod cypher_test;
@@ -36,4 +32,3 @@ mod cypher_test;
 // Decypher Tests
 #[cfg(test)]
 mod decypher_test;
-
