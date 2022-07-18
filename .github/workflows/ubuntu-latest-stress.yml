@@ -1,6 +1,6 @@
 name: ubuntu-latest-stress
 
-on:
+on: workflow_dispatch
   
 
 env:

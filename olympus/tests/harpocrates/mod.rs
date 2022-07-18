@@ -25,21 +25,9 @@
 // Contains the reusable functions used to test Traits
 pub mod function;
 
-// Contains traits integrations
-pub mod integration;
+// Contains traits implementations
+pub mod implementation;
 
+// harpocrates integration tests
 #[cfg(test)]
-mod tests {
-    use super::{function::secret_tests, integration::basic_secret::BasicSecret};
-
-
-    #[test]
-    fn basic_secret_test() {
-
-        // Run test from function
-        secret_tests::<BasicSecret>();
-
-    }
-
-
-}
+mod tests;

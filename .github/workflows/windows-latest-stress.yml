@@ -1,6 +1,6 @@
 name: windows-latest
 
-on:
+on: workflow_dispatch
   
 
 env:

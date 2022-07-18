@@ -28,7 +28,3 @@ pub use core_count::get_logical_core_count;
 /// Core counts 
 #[doc(hidden)]
 pub mod core_count;
-
-/// Copy slices macro 
-#[doc(hidden)]
-pub mod copy_slices;

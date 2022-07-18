@@ -21,18 +21,6 @@
  * @todo
  */
 
-
-  /// # Re-export of functions for Public API
-#[doc(inline)]
-pub use buffer::generate_buffer as generate_buffer;
-pub use buffer::wipe_buffer as wipe_buffer;
-pub use buffer::buffer_generator_charset as buffer_generator_charset;
-
-
-// Buffer related functions
-#[doc(hidden)]
-mod buffer;
-
  /// ##### Abstraction used for buffer encryption.
  /// 
  /// Cypher is used to create an encryption abstraction.
@@ -140,7 +128,3 @@ pub enum SecretNewOptions<'a> {
     /// * `&'a Vec<u8>` - Reference to vector of [`u8`] containing the state.
     FromState(&'a Vec<u8>),
 }
-
- // harpocrates module tests
-#[cfg(test)]
-mod test;

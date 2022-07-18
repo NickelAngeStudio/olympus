@@ -1,5 +1,6 @@
 //! Olympus is a simple, abstracted game engine.
 // TODO: Fill Olympus description for crate
+// TODO: Create logo for olympus with NAS style and color
 
 /// Collection of tools and dependencies abstractions.
 #[doc(hidden)]
@@ -19,7 +20,7 @@ pub mod atlas;
 /// realisation of the hieroglyph for "child". Misunderstanding this gesture, the later Greeks and Roman poets made Harpocrates the god of 
 /// silence and secrecy.
 /// 
-/// Harpocrates provide 2 traits used to cypher and decypher buffers and 1 trait to hide information in memory.
+/// Harpocrates provide 2 traits used to cypher and decypher buffers and 1 trait to conceal information in memory.
 /// 
 /// # Diagram
 /// TODO: Add SVGZ link

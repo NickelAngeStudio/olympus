@@ -23,7 +23,8 @@
 
 
 use rand::{ Rng};
-pub use olympus::{harpocrates::{Secret, SecretNewOptions, generate_buffer, buffer_generator_charset, wipe_buffer}, copy_slices};
+pub use olympus::{harpocrates::{Secret, SecretNewOptions }};
+use tampon::{buffer, deserialize, generate_buffer, buffer_generator_charset, wipe_buffer};
 
  /// Basic secret struct used to conceal content.
  /// 
@@ -52,19 +53,17 @@ impl Secret for BasicSecret {
                 let mask  = generate_buffer(& mut rng, buffer.len(), buffer_generator_charset::ALL);
                 let mut content = Vec::new();
 
-                // Create padded size
-                let padded_size = rng.gen_range((buffer.len()/2)..buffer.len());
-
-                for i in 0..padded_size {
-                    // Conceal content 
-                    if i < buffer.len() {
-                        content.push(buffer[i] ^ mask[i % mask.len()]);
-                    } else {
-                        // Create trash
-                        content.push(buffer[rng.gen_range(0..buffer.len())] ^ mask[i % mask.len()]);
-                    }
+                // Capture and mask content
+                for i in 0..buffer.len() {
+                    content.push(buffer[i] ^ mask[i % mask.len()]);
                 }
-                
+
+                // Create extra padded trash
+                let padded_size = rng.gen_range((buffer.len()/2)..buffer.len());
+                for i in 0..padded_size {
+                    // Create trash
+                    content.push(buffer[rng.gen_range(0..buffer.len())] ^ mask[i % mask.len()]);
+                }
 
                 return BasicSecret {
                     mask,
@@ -73,37 +72,22 @@ impl Secret for BasicSecret {
             },
             olympus::harpocrates::SecretNewOptions::FromState(state) => {
 
-                let mask  = generate_buffer(& mut rng, state.len(), buffer_generator_charset::ALL);
-                let mut content = Vec::new();
-
-                // Create padded size
-                let padded_size = rng.gen_range((state.len()/2)..state.len());
-
-                for i in 0..padded_size {
-                    // Conceal content 
-                    if i < state.len() {
-                        content.push(state[i] ^ mask[i % mask.len()]);
-                    } else {
-                        // Create trash
-                        content.push(state[rng.gen_range(0..state.len())] ^ mask[i % mask.len()]);
-                    }
-                }
-                
+                // Use tampon::deserialize! macro to retrieve mask and content
+                deserialize!(state, [mask, content]:u8);
 
                 return BasicSecret {
                     mask,
                     content
                 };
-
-
             },
         }
     }
 
+    
+
     fn get_secret_at(&self, index: usize) -> u8 {
         
         if index < self.content.len() {
-
             return self.mask[index % self.mask.len()] ^ self.content[index];
 
         } else {
@@ -114,15 +98,8 @@ impl Secret for BasicSecret {
     }
 
     fn get_state(&self) -> Vec<u8> {
-        let usize_bytes =  core::mem::size_of::<usize>();
-        let capacity = usize_bytes + self.mask.len() + self.content.len();
-        let mut state: Vec<u8> = vec![0; capacity];
-
-        // Copy content into state vec
-        copy_slices!(&mut state, 0, &self.mask.len().to_ne_bytes(), &self.mask, &self.content);
-
-        // Return state
-        state
+        // Use tampon::buffer! macro to generate state
+        buffer!([self.mask, self.content]:u8)
     }
 
     fn clear(&mut self) {
@@ -139,26 +116,4 @@ impl Secret for BasicSecret {
         let state= self.get_state();
         Self::new(olympus::harpocrates::SecretNewOptions::FromState(&state)) 
     }
-}
-
-
-#[test]
-fn get_secret_state() {
-
-    let mut rng = rand::thread_rng();
-    let mut buffer = generate_buffer(&mut rng, 50, buffer_generator_charset::NUMBER);
-    let bs = BasicSecret::new(SecretNewOptions::FromBuffer(&buffer));
-    wipe_buffer(&mut buffer);
-
-    let state = bs.get_state();
-
-    print!("\nBuffer = ");
-
-    // Print each element of vector
-    for elem in state.iter() {
-        print!("{}", elem);
-    }
-
-    print!("\n");
-
 }
