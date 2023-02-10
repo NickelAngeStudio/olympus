@@ -156,7 +156,7 @@ impl KWindow {
         if KWindow::is_size_within_boundaries(width, height) {
             // Dimensions are within boundaries.
             
-            
+            Err(KWindowError::NotSupported)
         } else {
             // Dimensions aren't within boundaries.
             Err(KWindowError::WindowSizeError)
@@ -169,7 +169,7 @@ impl KWindow {
         if KWindow::is_size_within_boundaries(width, height) {
             // Dimensions are within boundaries.
             
-            
+            Err(KWindowError::NotSupported)
         } else {
             // Dimensions aren't within boundaries.
             Err(KWindowError::WindowSizeError)
@@ -182,7 +182,7 @@ impl KWindow {
         if KWindow::is_size_within_boundaries(width, height) {
             // Dimensions are within boundaries.
             
-            
+            Err(KWindowError::NotSupported)
         } else {
             // Dimensions aren't within boundaries.
             Err(KWindowError::WindowSizeError)
@@ -195,7 +195,7 @@ impl KWindow {
         if KWindow::is_size_within_boundaries(width, height) {
             // Dimensions are within boundaries.
             
-            
+            Err(KWindowError::NotSupported)
         } else {
             // Dimensions aren't within boundaries.
             Err(KWindowError::WindowSizeError)
@@ -208,7 +208,7 @@ impl KWindow {
         if KWindow::is_size_within_boundaries(width, height) {
             // Dimensions are within boundaries.
             
-            
+            Err(KWindowError::NotSupported)
         } else {
             // Dimensions aren't within boundaries.
             Err(KWindowError::WindowSizeError)
