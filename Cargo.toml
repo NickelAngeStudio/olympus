@@ -1,0 +1,14 @@
+[package]
+name = "olympus"
+version = "0.0.0"
+authors = ["Baphomat <baphomat@nickelange.studio>"]
+edition = "2021"
+description = "Olympus is a 3d game engine made in Rust focused on simplicity. More to come!"
+keywords = ["3d", "engine", "simple", "gamedev", "graphics"]
+categories = ["game-engines"]
+repository = "https://github.com/NickelAngeStudio/olympus"
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
