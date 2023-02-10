@@ -131,60 +131,88 @@ impl KWindow {
     /// Returns [KWindowError::WindowSizeError] if width and/or height not within allowed boundaries.
     /// 
     /// # Note(s)
-    /// On Linux distribution, this will try to create a [Wayland](https://en.wikipedia.org/wiki/Wayland_(protocol)) window first then
-    /// a [x11](https://en.wikipedia.org/wiki/X_Window_System) window if not compatible with Wayland.
+    /// On Linux distribution, this will try to create a [Wayland](https://en.wikipedia.org/wiki/Wayland_(protocol)) window first
+    /// if #[cfg(wayland)] is defined, else a [x11](https://en.wikipedia.org/wiki/X_Window_System) window if not compatible with Wayland.
     #[cfg(all(not(target_family = "wasm"), target_os = "linux"))]
     pub fn new(pos_x:isize, pos_y:isize, width:usize, height:usize) -> Result<KWindow, KWindowError> {
+        // Make sure dimension are within boundaries.
+        if KWindow::is_size_within_boundaries(width, height) {
 
-        // Make sure width is within boundaries.
-
-        use crate::kleio::window::linux::x11::KWindowManagerX11;
-
-        use self::linux::wayland::KWindowManagerWayland;
-        if width < KWINDOW_MIN_WIDTH || width > KWINDOW_MAX_WIDTH {
-            return Err(KWindowError::WindowSizeError);
+            use self::linux::get_linux_window_manager;
+            match get_linux_window_manager(pos_x, pos_y, width, height) {
+                Ok(window_manager) => Ok(KWindow{ receivers : Vec::new(), window_manager}),
+                Err(err) => Err(err),
+            }
+            
+        } else {
+            Err(KWindowError::WindowSizeError)
         }
-
-        // Make sure height is within boundaries.
-        if height < KWINDOW_MIN_HEIGHT || height > KWINDOW_MAX_HEIGHT {
-            return Err(KWindowError::WindowSizeError);
-        }
-
-        // Use Wayland display server if compatible
-        if KWindowManagerWayland::is_compatible() {
-            Ok(KWindow{ receivers : Vec::new(), window_manager : Box::new(KWindowManagerWayland::new(pos_x, pos_y, width, height))})
-        } // Else use X11 display server
-        else if KWindowManagerX11::is_compatible() {
-            Ok(KWindow{ receivers : Vec::new(), window_manager : Box::new(KWindowManagerX11::new(pos_x, pos_y, width, height))})
-        } // Return error of NoDisplayServer
-        else {
-            Err(KWindowError::NoDisplayServer)
-        }
+        
     }
 
     #[cfg(all(not(target_family = "wasm"), target_os = "windows"))]
     pub fn new(pos_x:isize, pos_y:isize, width:usize, height:usize) -> Result<KWindow, KWindowError> {
-        todo!()
+        // Make sure dimensions are within boundaries.
+        if KWindow::is_size_within_boundaries(width, height) {
+            // Dimensions are within boundaries.
+            
+            Err(KWindowError::NotSupported)
+        } else {
+            // Dimensions aren't within boundaries.
+            Err(KWindowError::WindowSizeError)
+        }
     }
 
     #[cfg(all(not(target_family = "wasm"), target_os = "android"))]
     pub fn new(pos_x:isize, pos_y:isize, width:usize, height:usize) -> Result<KWindow, KWindowError> {
-        todo!()
+        // Make sure dimensions are within boundaries.
+        if KWindow::is_size_within_boundaries(width, height) {
+            // Dimensions are within boundaries.
+            
+            Err(KWindowError::NotSupported)
+        } else {
+            // Dimensions aren't within boundaries.
+            Err(KWindowError::WindowSizeError)
+        }
     }
 
     #[cfg(all(not(target_family = "wasm"), target_os = "ios"))]
     pub fn new(pos_x:isize, pos_y:isize, width:usize, height:usize) -> Result<KWindow, KWindowError> {
-        todo!()
+        // Make sure dimensions are within boundaries.
+        if KWindow::is_size_within_boundaries(width, height) {
+            // Dimensions are within boundaries.
+            
+            Err(KWindowError::NotSupported)
+        } else {
+            // Dimensions aren't within boundaries.
+            Err(KWindowError::WindowSizeError)
+        }
     }
 
     #[cfg(all(not(target_family = "wasm"), target_os = "macos"))]
     pub fn new(pos_x:isize, pos_y:isize, width:usize, height:usize) -> Result<KWindow, KWindowError> {
-        todo!()
+        // Make sure dimensions are within boundaries.
+        if KWindow::is_size_within_boundaries(width, height) {
+            // Dimensions are within boundaries.
+            
+            Err(KWindowError::NotSupported)
+        } else {
+            // Dimensions aren't within boundaries.
+            Err(KWindowError::WindowSizeError)
+        }
     }
 
     #[cfg(target_family = "wasm")]
     pub fn new(pos_x:isize, pos_y:isize, width:usize, height:usize) -> Result<KWindow, KWindowError> {
-        todo!()
+        // Make sure dimensions are within boundaries.
+        if KWindow::is_size_within_boundaries(width, height) {
+            // Dimensions are within boundaries.
+            
+            Err(KWindowError::NotSupported)
+        } else {
+            // Dimensions aren't within boundaries.
+            Err(KWindowError::WindowSizeError)
+        }
     }
 
     /// Create a [KWindow] from a [KWindowManager]. 
@@ -217,6 +245,19 @@ impl KWindow {
     /// ```
     pub fn downcast_window_manager<T: Any>(&self) -> Option<&T> {
         self.window_manager.as_any().downcast_ref::<T>()
+    }
+
+    /// Return True if width and size are between boundaries.
+    fn is_size_within_boundaries(width:usize, height:usize) -> bool {
+
+        if width >= KWINDOW_MIN_WIDTH && width <= KWINDOW_MAX_WIDTH && height >= KWINDOW_MIN_HEIGHT && height <= KWINDOW_MAX_HEIGHT {
+            // Withing boundaries
+            true
+        } else {
+            // Boundaries overflow
+            false
+        }
+
     }
 }
 
