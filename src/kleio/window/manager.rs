@@ -42,6 +42,9 @@ pub trait KWindowManager {
     fn get_event_count(&self) -> usize;
 
     /// Get an event from window manager as [KEvent].
+    /// 
+    /// Note(s)
+    /// This function is intended to be called by [KWindow] only.
     fn poll_event(&mut self) -> KEvent;
 
     /// Sync event with display manager.
@@ -114,11 +117,14 @@ pub trait KWindowManager {
     /// Restore the [KWindow], undoing any minimized, maximized and/or fullscreen status.
     fn restore(&self);
 
-    /// Show the default operating system cursor.
-    fn show_cursor(&self);
+    /// Show the default operating system cursor with option to keep the cursor inside window boundaries.
+    fn show_cursor(&self, keep_inside_window : bool);
 
     /// Hide the default operating system cursor.
     fn hide_cursor(&self);
+
+    /// Set the cursor position with a pair (x,y).
+    fn set_cursor_position(&self, position : (i32, i32));
 
     
 }

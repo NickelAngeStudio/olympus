@@ -1,5 +1,5 @@
 use std::{panic::catch_unwind};
-
+use std::os::raw::{ c_int };
 use crate::kleio::window::{linux::x11::{bind::{XDefaultRootWindow, XCreateSimpleWindow, XMapWindow, XSelectInput, XSync, XEventsQueued}, constant::{KeyPressMask, ButtonPressMask, ExposureMask, KeyPress, KeyRelease, ButtonPress, MotionNotify, LeaveNotify, ButtonRelease, EnterNotify, FocusIn, FocusOut, KeymapNotify, Expose, GraphicsExpose, NoExpose, VisibilityNotify, CreateNotify, DestroyNotify, UnmapNotify, MapNotify, MapRequest, ReparentNotify, ConfigureNotify, ConfigureRequest, GravityNotify, ResizeRequest, CirculateNotify, CirculateRequest, PropertyNotify, SelectionClear, SelectionRequest, SelectionNotify, ColormapNotify, ClientMessage, MappingNotify, GenericEvent}}, event::KEvent, self, KWindowManager, KWindowManagerId, KEventMouse, KEventKeyboard};
 
 use self::{event::{ Display, Window, XEvent }, bind::{XOpenDisplay, XCloseDisplay, XNextEvent}, constant::{KeyReleaseMask, ButtonReleaseMask, LeaveWindowMask, EnterWindowMask, Button1MotionMask, PointerMotionMask, Button3MotionMask, Button2MotionMask, Button5MotionMask, Button4MotionMask, ButtonMotionMask, StructureNotifyMask, ResizeRedirectMask, VisibilityChangeMask, FocusChangeMask, PropertyChangeMask}};
@@ -22,6 +22,10 @@ pub mod bind;
 pub struct KWindowManagerX11 {
     /// Used to fetch events
     event : XEvent,
+
+    /// Previous Mouse cursor position
+    prev_x : c_int,
+    prev_y : c_int,
 
     /// X11 Display pointer
     display : *mut Display,
@@ -98,7 +102,7 @@ impl KWindowManager for KWindowManagerX11 {
             XSelectInput(display, window, mask);
 
             // Return KWindowManagerX11
-            KWindowManagerX11 { event : XEvent { _type: 0}, display : display, window : window }
+            KWindowManagerX11 { event : XEvent { _type: 0}, prev_x: 0, prev_y: 0, display : display, window : window }
         }
     }
 
@@ -109,11 +113,20 @@ impl KWindowManager for KWindowManagerX11 {
             
             match self.event._type {
                 KeyPress => { println!("KWindow({:p}), KeyPress({})", self, self.event._type); 
-                            KEvent::Keyboard(KEventKeyboard::KeyDown(self.event._xkey._keycode)) },
+                    KEvent::Keyboard(KEventKeyboard::KeyDown(self.event._xkey._keycode)) },
                 KeyRelease=> { println!("KWindow({:p}), KeyRelease({})", self, self.event._type); KEvent::Unknown },
                 ButtonPress=> { println!("KWindow({:p}), ButtonPress({})", self, self.event._type); KEvent::Unknown },
                 ButtonRelease=> { println!("KWindow({:p}), ButtonRelease({})", self, self.event._type); KEvent::Unknown },
-                MotionNotify=> KEvent::Mouse(KEventMouse::Moved((self.event._xmotion._x, self.event._xmotion._y), (self.event._xmotion._x, self.event._xmotion._y))),
+                MotionNotify=> {
+                    let event = KEvent::Mouse(KEventMouse::Moved((self.event._xmotion._x, self.event._xmotion._y), (self.prev_x, self.prev_y)));
+                    
+                    // Keep new position as previous position
+                    self.prev_x = self.event._xmotion._x;
+                    self.prev_y = self.event._xmotion._y;
+
+                    // Return event
+                    event
+                },
                 EnterNotify=> { println!("KWindow({:p}), EnterNotify({})", self, self.event._type); KEvent::Unknown },
                 LeaveNotify=> { println!("KWindow({:p}), LeaveNotify({})", self, self.event._type); KEvent::Unknown },
                 FocusIn=> KEvent::Window(window::KEventWindow::Focus()),
@@ -145,23 +158,6 @@ impl KWindowManager for KWindowManagerX11 {
                 GenericEvent=> { println!("KWindow({:p}), GenericEvent({})", self, self.event._type); KEvent::Unknown },
                 _ => { println!("KWindow({:p}), _({})", self, self.event._type); KEvent::Unknown },
             }
-            
-            
-
-
-            /*
-            if XEventsQueued(self.display, 0) > 0 {
-                
-
-                KEvent::Unknown
-            } else {
-                // Perform an XSync when no event queued
-                
-
-                // Return KEvent::None
-                KEvent::Unknown
-            }
-            */
         }
     }
 
@@ -230,11 +226,15 @@ impl KWindowManager for KWindowManagerX11 {
         todo!()
     }
 
-    fn show_cursor(&self) {
+    fn show_cursor(&self,keep_inside_window : bool) {
         todo!()
     }
 
     fn hide_cursor(&self) {
+        todo!()
+    }
+
+    fn set_cursor_position(&self, position : (i32, i32)) {
         todo!()
     }
 }

@@ -304,11 +304,15 @@ impl KWindowManager for KWindowManagerControl {
         todo!()
     }
 
-    fn show_cursor(&self) {
+    fn show_cursor(&self, dd:bool) {
         todo!()
     }
 
     fn hide_cursor(&self) {
+        todo!()
+    }
+
+    fn set_cursor_position(&self, position : (i32, i32)) {
         todo!()
     }
 }

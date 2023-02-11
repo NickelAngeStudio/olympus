@@ -140,4 +140,8 @@ impl KWindowManager for KWindowManagerWayland {
     fn hide_cursor(&self) {
         todo!()
     }
+
+    fn set_cursor_position(&self, position : (i32, i32)) {
+        todo!()
+    }
 }
