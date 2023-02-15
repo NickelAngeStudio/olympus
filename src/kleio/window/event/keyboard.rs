@@ -1,4 +1,5 @@
 /// Enumeration of possible Keyboard events
+#[derive(Copy, Clone)]
 pub enum KEventKeyboard {
 
     // Keyboard key down event. Provides unicode of key pressed.

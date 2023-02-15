@@ -2,9 +2,9 @@
 #[cfg(test)]
 pub mod event;
 
-// Contains tests for windows KWindow
+// Contains tests for KEventDispatcher
 #[cfg(test)]
-pub mod window;
+pub mod dispatcher;
 
-/// Contains tests for KWindowManager implementation
-pub mod manager;
+// Contains tests for KWindowManager implementation
+//pub mod manager;

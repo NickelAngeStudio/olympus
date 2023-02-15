@@ -9,6 +9,18 @@ categories = ["game-engines"]
 repository = "https://github.com/NickelAngeStudio/olympus"
 license = "MIT"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+git_workflow = [] # Flag feature for GitHub Workflow.
+
 
 [dependencies]
+
+
+
+[package.metadata.docs.rs]
+# Reference : https://stackoverflow.com/questions/61417452/how-to-get-a-feature-requirement-tag-in-the-documentation-generated-by-cargo-do
+# Enable unstable features in the documentation
+all-features = true
+# defines the configuration attribute `docsrs`
+rustdoc-args = ["--cfg", "docsrs"]

@@ -2,6 +2,7 @@
 // NOTE: All struct and union members name start with "_" to prevent conflict with Rust reserved words.
 
 use std::os::raw::{ c_int, c_long, c_uint, c_ulong, c_char, c_uchar, c_short, c_void };
+use super::{Display, Window};
 
 // Types definition (ref : https://docs.rs/x11/latest/x11)
 pub type Time = c_ulong;
@@ -9,8 +10,6 @@ pub type XID = c_ulong;
 pub type Atom = XID;
 pub type Colormap = XID;
 pub type Drawable = XID;
-pub type Window = XID;
-pub type Display = XID;
 
 /// Union 'data' of XClientMessageEvent struct.
 #[repr(C)]

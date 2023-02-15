@@ -1,47 +1,38 @@
-use std::any::Any;
-use std::cell::RefCell;
-use std::rc::Rc;
-
 /// # Re-export for Public API
 #[doc(inline)]
 pub use renderer::KWindowRenderer as KWindowRenderer;
-pub use manager::KWindowManager as KWindowManager;
-pub use manager::KWindowManagerId as KWindowManagerId;
 pub use event::KEvent as KEvent;
 pub use event::mouse::KEventMouse as KEventMouse;
 pub use event::window::KEventWindow as KEventWindow;
 pub use event::controller::KEventController as KEventController;
 pub use event::keyboard::KEventKeyboard as KEventKeyboard;
-pub use receiver::KEventReceiver as KEventReceiver;
-pub use property::KWINDOW_MIN_WIDTH as KWINDOW_MIN_WIDTH;
-pub use property::KWINDOW_MIN_HEIGHT as KWINDOW_MIN_HEIGHT;
-pub use property::KWINDOW_MAX_WIDTH as KWINDOW_MAX_WIDTH;
-pub use property::KWINDOW_MAX_HEIGHT as KWINDOW_MAX_HEIGHT;
+pub use event::dispatcher::KEventDispatcherError as KEventDispatcherError;
+pub use event::dispatcher::KEventDispatcher as KEventDispatcher;
+pub use event::dispatcher::KEventReceiver as KEventReceiver;
 
 /// [KWindow] event definition.
 #[doc(hidden)]
 pub mod event;
 
-/// [KWindowManager] definition.
-#[doc(hidden)]
-pub mod manager;
-
 /// [KWindow] renderer abstraction.
 #[doc(hidden)]
 pub mod renderer;
 
-/// [KWindow] receiver abstraction and dispatcher implementation.
+// Kwindow global documentation of implementation
+#[cfg(doc)]
 #[doc(hidden)]
-pub mod receiver;
+pub mod doc;
 
-/// [KWindow] properties implementation.
-#[doc(hidden)]
-pub mod property;
+#[cfg(doc)]
+pub use doc::KWindow as KWindow;
 
 /// Linux implementation of KWindow
 #[cfg(all(not(target_family = "wasm"), target_os = "linux"))]
 #[doc(hidden)]
 pub mod linux;
+
+#[cfg(all(not(doc), not(target_family = "wasm"), target_os = "linux"))]
+pub use linux::KWindow as KWindow;
 
 /// Windows shell implementations of KWindow
 #[cfg(all(not(target_family = "wasm"), target_os = "windows"))]
@@ -69,6 +60,19 @@ pub mod macos;
 pub mod wasm;
 
 
+/// Minimum [KWindow] width allowed.
+pub const KWINDOW_MIN_WIDTH : usize = 1;
+
+/// Minimum [KWindow] height allowed.
+pub const KWINDOW_MIN_HEIGHT : usize = 1;
+
+/// Maximum [KWindow] width allowed.
+pub const KWINDOW_MAX_WIDTH : usize = 65535;
+
+/// Maximum [KWindow] width allowed.
+pub const KWINDOW_MAX_HEIGHT : usize = 65535;
+
+
 /// Enumeration of possible [KWindow] errors.
 pub enum KWindowError {
 
@@ -81,20 +85,27 @@ pub enum KWindowError {
     /// Happens when an error occurred while creating a [KWindow] using KWindow::from().
     FromWindowManagerError,
 
-    /// Happens when trying to add the same [KEventReceiver] twice to a [KWindow].
-    ReceiverAlreadyExists,
-
-    /// Happens when trying to remove a  [KEventReceiver] not added to a [KWindow].
-    ReceiverNotFound,
-
-    /// Happens when trying to dispatch events when no [KEventReceiver] were added.
-    DispatchNoReceiver,
-
     /// Happens when trying to resize a [KWindow] outside of allowed boundaries.
     WindowSizeError,
 
 
 }
+
+/// Enumeration of possible [KWindow] motion mode.
+pub enum KWindowMotionMode {
+    /// [KEventMouse] events will give the (x,y) location of the cursor on the window. 
+    /// 
+    /// Usually used for user interfaces.
+    Location,
+
+    /// [KEventMouse] events will give the (x,y) acceleration of the cursor instead of the position.
+    /// 
+    /// Usually used for 3d camera and direct mouse inputs.
+    Acceleration,
+}
+
+
+
 
 impl std::fmt::Debug for KWindowError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -105,19 +116,23 @@ impl std::fmt::Debug for KWindowError {
 }
 
 
-/// # Create and manage a window frame in OS GUI.
+/// Enumeration of linux display server provider.
 /// 
-/// [KWindow] broadcasts [KEvent] to multiple [KEventReceiver] via [KWindow::dispatch_events()].
-/// 
-/// TODO: More doc about OS, dispatch, from and window manager and Examples
-pub struct KWindow {
-    /// List of receivers.
-    receivers : Vec<Rc<RefCell<dyn KEventReceiver>>>,
+/// Linux can support more than 1 display server so it is important to enumerate
+/// supported display server and be ready for future addition.
+#[cfg(any(doc, all(not(target_family = "wasm"), target_os = "linux")))]
+#[cfg_attr(docsrs, doc(cfg(any(target_os = "linux"))))]
+pub enum LinuxDisplayServerProvider {
+    /// [Wayland](https://en.wikipedia.org/wiki/Wayland_(protocol)) display server.
+    Wayland,
 
-    /// Window manager that manage this [KWindow].
-    window_manager : Box<dyn KWindowManager>,
+    /// [X Window System](https://en.wikipedia.org/wiki/X_Window_System) display server.
+    X11,
 }
 
+
+
+/*
 /// Implementation of [KWindow] [KEventReceiver] handling.
 impl KWindow {
     /// Create a new [KWindow] using position and size.
@@ -133,8 +148,13 @@ impl KWindow {
     /// # Note(s)
     /// On Linux distribution, this will try to create a [Wayland](https://en.wikipedia.org/wiki/Wayland_(protocol)) window first
     /// if #[cfg(wayland)] is defined, else a [x11](https://en.wikipedia.org/wiki/X_Window_System) window if not compatible with Wayland.
-    #[cfg(all(not(target_family = "wasm"), target_os = "linux"))]
+    //#[cfg(any(doc, all(not(target_family = "wasm"), target_os = "linux")))]
+    #[cfg(any(target_os = "linux", doc))]
+    #[cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
     pub fn new(pos_x:isize, pos_y:isize, width:usize, height:usize) -> Result<KWindow, KWindowError> {
+        
+        
+
         // Make sure dimension are within boundaries.
         if KWindow::is_size_within_boundaries(width, height) {
 
@@ -150,7 +170,9 @@ impl KWindow {
         
     }
 
-    #[cfg(all(not(target_family = "wasm"), target_os = "windows"))]
+    //#[cfg(any(doc, all(not(target_family = "wasm"), target_os = "windows")))]
+    #[cfg(any(target_os = "windows", doc))]
+    #[cfg(any(windows, doc))]
     pub fn new(pos_x:isize, pos_y:isize, width:usize, height:usize) -> Result<KWindow, KWindowError> {
         // Make sure dimensions are within boundaries.
         if KWindow::is_size_within_boundaries(width, height) {
@@ -260,4 +282,4 @@ impl KWindow {
 
     }
 }
-
+*/

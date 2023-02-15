@@ -16,7 +16,14 @@ pub mod mouse;
 #[doc(hidden)]
 pub mod controller;
 
+// Kleio events dispatcher and receiver
+#[doc(hidden)]
+pub mod dispatcher;
+
+
+
 /// Union of possible events into an enumeration.
+#[derive(Copy, Clone)]
 pub enum KEvent {
 
     /// Unknown Event

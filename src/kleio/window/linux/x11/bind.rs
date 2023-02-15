@@ -1,7 +1,8 @@
 // Contains bindings for XLib
 use std::os::raw::{c_char, c_int, c_long, c_uint, c_ulong};
 
-use super::event::{Display, Window, XEvent};
+use super::{ Display, Window };
+use super::event::{ XEvent};
 
 
 #[link(name = "X11")]
