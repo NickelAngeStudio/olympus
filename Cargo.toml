@@ -9,7 +9,10 @@ categories = ["game-engines"]
 repository = "https://github.com/NickelAngeStudio/olympus"
 license = "MIT"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+git_workflow = [] # Flag feature for GitHub Workflow.
+
 
 [dependencies]
 

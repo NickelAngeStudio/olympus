@@ -54,7 +54,7 @@ impl KEventReceiverControl {
 }
 
 impl KEventReceiver for KEventReceiverControl {
-    fn receive(&mut self, event : &KEvent) -> bool {
+    fn handle_event(&mut self, event : &KEvent) -> bool {
         
        match event {
         KEvent::Unknown => println!("Event={:?}", event),
@@ -70,7 +70,7 @@ impl KEventReceiver for KEventReceiverControl {
             olympus::kleio::window::KEventKeyboard::KeyUp(_) => println!("Event={:?}", event),
         },
         KEvent::Mouse(event) => match event {
-            olympus::kleio::window::KEventMouse::Moved(_, _) => (),
+            olympus::kleio::window::KEventMouse::Moved(_) => (),
             _ => println!("Event={:?}", event),
 
         },

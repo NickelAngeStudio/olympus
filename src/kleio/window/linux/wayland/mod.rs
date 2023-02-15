@@ -1,6 +1,6 @@
 use std::panic::catch_unwind;
 
-use crate::kleio::window::{event::KEvent, KWindowManager, KWindowManagerId, KWindowError};
+use crate::kleio::window::{event::KEvent, KWindowError};
 
 use self::bind::{wl_display_connect, wl_display, wl_display_disconnect};
 
@@ -11,7 +11,7 @@ use self::bind::{wl_display_connect, wl_display, wl_display_disconnect};
 #[allow(non_camel_case_types)]    // Imported C global aren't formatted according to convention.
 pub mod bind;
 
-
+/*
 /// # Wayland KWindow backend
 pub struct KWindowManagerWayland {
 
@@ -145,3 +145,4 @@ impl KWindowManager for KWindowManagerWayland {
         todo!()
     }
 }
+*/

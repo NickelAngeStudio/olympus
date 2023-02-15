@@ -1,4 +1,5 @@
 /// Enumeration of possible controller events
+#[derive(Copy, Clone)]
 pub enum KEventController {
 
     /// Happens when a controller device has been connected. Provides controller id.

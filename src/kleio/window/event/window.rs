@@ -1,4 +1,5 @@
 /// Enumeration of possible events for a window
+#[derive(Copy, Clone)]
 pub enum KEventWindow {
 
     /// Happens when KWindow is shown.
