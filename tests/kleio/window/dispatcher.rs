@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use olympus::kleio::window::{ KEvent, KEventReceiver, KEventController, KEventKeyboard, KEventMouse, KEventWindow, KEventDispatcher, KEventDispatcherError};
+use olympus::kleio::window::event::{ KEvent, KEventReceiver, KEventController, KEventKeyboard, KEventMouse, KEventWindow, KEventDispatcher, KEventDispatcherError};
 
 use crate::{assert_err, assert_ok};
 
@@ -303,7 +303,8 @@ impl KEventReceiver for KEventReceiverControl {
             KEvent::Window(_) => self.handle_window,
             KEvent::Keyboard(_) => self.handle_keyboard,
             KEvent::Mouse(_) => self.handle_mouse,
-            KEvent::Controller(_) => self.handle_controller,            
+            KEvent::Controller(_) => self.handle_controller,
+            KEvent::None => panic!("Error : Unknown event received!"),            
         }
     }
 

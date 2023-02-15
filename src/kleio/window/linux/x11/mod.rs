@@ -1,16 +1,16 @@
 use std::{panic::catch_unwind};
 use std::os::raw::{ c_int };
-use crate::kleio::window::{LinuxDisplayServerProvider, KWindowMotionMode};
+use crate::kleio::window::{ KWindowMotionMode, event::KEventDispatcher, event::KEventDispatcherError, KWindowError};
 use crate::kleio::window::{linux::x11::{bind::{XDefaultRootWindow, XCreateSimpleWindow, XMapWindow, XSelectInput, XSync, XEventsQueued}, 
     constant::{KeyPressMask, ButtonPressMask, ExposureMask, KeyPress, KeyRelease, ButtonPress, MotionNotify, LeaveNotify, 
     ButtonRelease, EnterNotify, FocusIn, FocusOut, KeymapNotify, Expose, GraphicsExpose, NoExpose, VisibilityNotify, 
     CreateNotify, DestroyNotify, UnmapNotify, MapNotify, MapRequest, ReparentNotify, ConfigureNotify, ConfigureRequest, 
     GravityNotify, ResizeRequest, CirculateNotify, CirculateRequest, PropertyNotify, SelectionClear, SelectionRequest, SelectionNotify, 
-    ColormapNotify, ClientMessage, MappingNotify, GenericEvent}}, event::KEvent, self, KEventMouse, KEventKeyboard};
+    ColormapNotify, ClientMessage, MappingNotify, GenericEvent}}, event::KEvent, self, event::KEventMouse, event::KEventKeyboard};
 
 use self::{event::{ XEvent }, bind::{XOpenDisplay, XCloseDisplay, XNextEvent}, constant::{KeyReleaseMask, ButtonReleaseMask, LeaveWindowMask, EnterWindowMask, Button1MotionMask, PointerMotionMask, Button3MotionMask, Button2MotionMask, Button5MotionMask, Button4MotionMask, ButtonMotionMask, StructureNotifyMask, ResizeRedirectMask, VisibilityChangeMask, FocusChangeMask, PropertyChangeMask}};
 
-use super::{ Display, Window, KDisplayServer };
+use super::{ Display, Window, KLinuxDisplayServer };
 
 /// Contains X11 contants definition
 #[allow(unused)]                    // Remove unused variable notification
@@ -27,8 +27,8 @@ pub mod bind;
 
 
 
-/// # X11 KWindow backend
-pub struct KWindowX11 {
+/// # X11 display server backend
+pub struct X11DisplayServer {
     /// Used to fetch events
     event : XEvent,
 
@@ -37,18 +37,11 @@ pub struct KWindowX11 {
 
     /// X11 Window pointer
     window : *mut Window,
-
-    /// X11 Motion mode,
-    motion_mode : KWindowMotionMode,
-
-    /// X11 Window center,
-    center : (i32, i32)
 }
 
-/// [KWindowX11] members.
-impl KWindowX11 {
-
-    fn new(pos_x:isize, pos_y:isize, width:usize, height:usize) -> Self where Self: Sized {
+/// Public [KWindowX11] members.
+impl X11DisplayServer {
+    pub fn new(pos_x:isize, pos_y:isize, width:usize, height:usize) -> X11DisplayServer {
         unsafe {
             // Create display connection
             let display = XOpenDisplay(std::ptr::null());
@@ -76,24 +69,21 @@ impl KWindowX11 {
             // Mask of events to receive
             XSelectInput(display, window, mask);
 
-            let center = ((width as i32 / 2), (height as i32 / 2));
+            
 
             // Return KWindowManagerX11
-            KWindowX11 { event : XEvent { _type: 0}, display : display, window : window, motion_mode: KWindowMotionMode::Location, center }
+            X11DisplayServer { event : XEvent { _type: 0}, display : display, window : window }
         }
     }
 
     
 
-    /// Returns X11 display pointer.
-    pub fn get_display(&self) -> *mut Display {
-        self.display
-    }
+
 
 
 }
 
-impl Drop for KWindowX11 {
+impl Drop for X11DisplayServer {
     /// KWindowX11 destructor. Will disconnect display server.
     fn drop(&mut self) {
         unsafe {
@@ -104,7 +94,40 @@ impl Drop for KWindowX11 {
 }
 
 
-impl KDisplayServer for KWindowX11 {
+impl KLinuxDisplayServer for X11DisplayServer {
+    fn is_compatible() -> bool where Self:Sized {
+        unsafe {
+            // Try to call C function with error handling.
+            let result = catch_unwind(|| {
+                XOpenDisplay(std::ptr::null())
+            }); 
+
+            match result {
+                Ok(display) => {
+                    if display == std::ptr::null_mut() {
+                        false
+                    } else {
+                        // Disconnect display before returning true
+                        XCloseDisplay(display);
+
+                        true
+                    }
+                },
+
+                // Error occurred, not compatible.
+                Err(_) => false,
+            }
+        }
+    }
+
+    fn pop_event(&mut self) -> KEvent {
+        todo!()
+    }
+}
+
+
+/*
+impl KLinuxDisplayServer for X11DisplayServer {
     fn get_display_server_provider(&self) -> LinuxDisplayServerProvider{
         LinuxDisplayServerProvider::X11
     }
@@ -275,5 +298,5 @@ impl KDisplayServer for KWindowX11 {
 
     
 }
-
+*/
 

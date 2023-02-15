@@ -1,38 +1,20 @@
 /// # Re-export for Public API
 #[doc(inline)]
-pub use renderer::KWindowRenderer as KWindowRenderer;
-pub use event::KEvent as KEvent;
-pub use event::mouse::KEventMouse as KEventMouse;
-pub use event::window::KEventWindow as KEventWindow;
-pub use event::controller::KEventController as KEventController;
-pub use event::keyboard::KEventKeyboard as KEventKeyboard;
-pub use event::dispatcher::KEventDispatcherError as KEventDispatcherError;
-pub use event::dispatcher::KEventDispatcher as KEventDispatcher;
-pub use event::dispatcher::KEventReceiver as KEventReceiver;
+pub use window::KWindow as KWindow;
+pub use window::KWindowError as KWindowError;
+pub use window::KWindowMotionMode as KWindowMotionMode;
 
-/// [KWindow] event definition.
+/// [KWindow] definition.
 #[doc(hidden)]
+pub mod window;
+
+/// Elements relatives to [KWindow] events and handling.
 pub mod event;
-
-/// [KWindow] renderer abstraction.
-#[doc(hidden)]
-pub mod renderer;
-
-// Kwindow global documentation of implementation
-#[cfg(doc)]
-#[doc(hidden)]
-pub mod doc;
-
-#[cfg(doc)]
-pub use doc::KWindow as KWindow;
 
 /// Linux implementation of KWindow
 #[cfg(all(not(target_family = "wasm"), target_os = "linux"))]
 #[doc(hidden)]
 pub mod linux;
-
-#[cfg(all(not(doc), not(target_family = "wasm"), target_os = "linux"))]
-pub use linux::KWindow as KWindow;
 
 /// Windows shell implementations of KWindow
 #[cfg(all(not(target_family = "wasm"), target_os = "windows"))]
@@ -58,79 +40,6 @@ pub mod macos;
 #[cfg(target_family = "wasm")]
 #[doc(hidden)]
 pub mod wasm;
-
-
-/// Minimum [KWindow] width allowed.
-pub const KWINDOW_MIN_WIDTH : usize = 1;
-
-/// Minimum [KWindow] height allowed.
-pub const KWINDOW_MIN_HEIGHT : usize = 1;
-
-/// Maximum [KWindow] width allowed.
-pub const KWINDOW_MAX_WIDTH : usize = 65535;
-
-/// Maximum [KWindow] width allowed.
-pub const KWINDOW_MAX_HEIGHT : usize = 65535;
-
-
-/// Enumeration of possible [KWindow] errors.
-pub enum KWindowError {
-
-    /// Happens when a window manager is not supported.
-    NotSupported,
-
-    /// Happens when no display server is found.
-    NoDisplayServer,
-
-    /// Happens when an error occurred while creating a [KWindow] using KWindow::from().
-    FromWindowManagerError,
-
-    /// Happens when trying to resize a [KWindow] outside of allowed boundaries.
-    WindowSizeError,
-
-
-}
-
-/// Enumeration of possible [KWindow] motion mode.
-pub enum KWindowMotionMode {
-    /// [KEventMouse] events will give the (x,y) location of the cursor on the window. 
-    /// 
-    /// Usually used for user interfaces.
-    Location,
-
-    /// [KEventMouse] events will give the (x,y) acceleration of the cursor instead of the position.
-    /// 
-    /// Usually used for 3d camera and direct mouse inputs.
-    Acceleration,
-}
-
-
-
-
-impl std::fmt::Debug for KWindowError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            _ => write!(f, "KWindowError"),
-        }
-    }
-}
-
-
-/// Enumeration of linux display server provider.
-/// 
-/// Linux can support more than 1 display server so it is important to enumerate
-/// supported display server and be ready for future addition.
-#[cfg(any(doc, all(not(target_family = "wasm"), target_os = "linux")))]
-#[cfg_attr(docsrs, doc(cfg(any(target_os = "linux"))))]
-pub enum LinuxDisplayServerProvider {
-    /// [Wayland](https://en.wikipedia.org/wiki/Wayland_(protocol)) display server.
-    Wayland,
-
-    /// [X Window System](https://en.wikipedia.org/wiki/X_Window_System) display server.
-    X11,
-}
-
-
 
 /*
 /// Implementation of [KWindow] [KEventReceiver] handling.
