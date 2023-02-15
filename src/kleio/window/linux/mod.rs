@@ -1,8 +1,8 @@
 use std::os::raw::{ c_ulong };
-use super::{ KWindowError, LinuxDisplayServerProvider, KEvent, KWindowMotionMode};
+use super::{ KWindowError, event::KEvent, KWindowMotionMode};
 
 /// Wayland KWindowManager
-#[cfg(not(feature="git_workflow"))]     // The github workflow doesn't have wayland-client.
+#[cfg(not(feature="no_wayland"))]     // Add Wayland if not remove via feature.
 pub mod wayland;
 
 /// X11 KWindowManager
@@ -14,120 +14,69 @@ pub type Window = c_ulong;
 /// Type used for display server connection pointer. 
 pub type Display = c_ulong;
 
-/// Linux definition of KWindow.
+
+/// Enumeration of linux display server provider.
 /// 
-/// The Linux KWindow will try to open a connection with Wayland first. 
-/// If it failed, it will open a connection with X11 then.
-pub struct KWindow {
+/// Linux can support more than 1 display server so it is important to enumerate
+/// supported display server and be ready for future addition.
+#[cfg(any(doc, all(not(target_family = "wasm"), target_os = "linux")))]
+#[cfg_attr(docsrs, doc(cfg(any(target_os = "linux"))))]
+pub enum LinuxDisplayServerProvider {
+    /// [Wayland](https://en.wikipedia.org/wiki/Wayland_(protocol)) display server.
+    Wayland,
 
-
-
-    // List of receivers.
-    //receivers : Vec<Rc<RefCell<dyn KEventReceiver>>>,
-
-    // Motion mode
-    //motion_mode : KWindowMotionMode,
-    
-
+    /// [X Window System](https://en.wikipedia.org/wiki/X_Window_System) display server.
+    X11,
 }
 
 /// Abstraction of Linux display server
-pub trait KDisplayServer  {
+pub trait KLinuxDisplayServer  {
 
-    /// Returns True if this display server is compatible.
-    fn is_compatible() -> bool;
-    
-    fn get_display_server_provider(&self) -> LinuxDisplayServerProvider;
+    /// Return true if display server is compatible with current linux distro.
+    fn is_compatible() -> bool where Self:Sized;
 
-    fn get_display_server_connection(&self) -> *const Display;
-    
-    fn get_display_server_window(&self) -> *const Window;
-
-    fn poll_event(&mut self) -> KEvent;
-
-    fn get_event_count(&self) -> usize;
-
-    fn sync_event(&self);
-
-    fn set_title(&self, title : &str);
-
-    fn get_title(&self) -> &str;
-
-    fn set_size(&self, dimension : (usize, usize));
-
-    fn get_size(&self) -> (usize, usize);
-
-    fn set_fullscreen(&self, fullscreen : bool);
-
-    fn is_fullscreen(&self) -> bool;
-
-    fn set_minimized(&self, minimized : bool);
-
-    fn is_minimized(&self) -> bool;
-
-    fn set_maximized(&self, maximized : bool);
-
-    fn is_maximized(&self) -> bool;
-
-    fn restore(&self);
-
-    fn show_cursor(&self,keep_inside_window : bool);
-
-    fn hide_cursor(&self);
-
-    fn is_cursor_hidden(&self);
-
-    fn set_cursor_position(&self, position : (i32, i32));
-
-    fn set_motion_mode(&self, mode : KWindowMotionMode);
-
-    fn get_motion_mode(&self) -> KWindowMotionMode;
+    /// Pop an event from the queue. 
+    /// 
+    /// Warning(s)
+    /// Will lock until next event if no events.
+    fn pop_event(&mut self) -> KEvent;
 
 }
 
-
-
-/*
-/// Get the appropriate linux window manager. Will try to open Wayland first then X11.
+/// Get the appropriate linux display server. Will try to open Wayland first then X11.
 /// 
-/// Returns Ok([KWindowManager]) if successful.
+/// Returns Ok(Box<dyn KLinuxDisplayServer>) if successful.
 /// 
 /// # Error(s)
 /// Returns Err([KWindowError::NoDisplayServer]) if no compatible display server found.
-#[cfg(wayland)]
-pub fn get_linux_window_manager(pos_x:isize, pos_y:isize, width:usize, height:usize) -> Result<Box<dyn KWindowManager>, KWindowError> {
-    use crate::kleio::window::linux::x11::KWindowManagerX11;
-
+pub fn get_linux_display_server(pos_x:isize, pos_y:isize, width:usize, height:usize) -> Result<Box<dyn KLinuxDisplayServer>, KWindowError> {
         
-    use crate::kleio::window::{ linux::wayland::KWindowManagerWayland};
+        use x11::X11DisplayServer;
+        
 
-        // Use Wayland display server if compatible
-        if KWindowManagerWayland::is_compatible() {
-            Ok(Box::new(KWindowManagerWayland::new(pos_x, pos_y, width, height)))
-        } // Else use X11 display server
-        else if KWindowManagerX11::is_compatible() {
-            Ok(Box::new(KWindowManagerX11::new(pos_x, pos_y, width, height)))
-        } // Return error of NoDisplayServer
-        else {
-            Err(KWindowError::NoDisplayServer)
+        #[cfg(not(feature="no_wayland"))]
+        {
+            use wayland::WaylandDisplayServer;
+
+            // Use Wayland display server if compatible
+            if WaylandDisplayServer::is_compatible() {
+                Ok(Box::new(WaylandDisplayServer::new(pos_x, pos_y, width, height)))
+            } // Else use X11 display server
+            else if X11DisplayServer::is_compatible() {
+                Ok(Box::new(X11DisplayServer::new(pos_x, pos_y, width, height)))
+            } // Return error of NoDisplayServer
+            else {
+                Err(KWindowError::NoDisplayServer)
+            }
+        }
+
+        #[cfg(feature="no_wayland")]
+        {
+            if X11DisplayServer::is_compatible() {
+                Ok(Box::new(X11DisplayServer::new(pos_x, pos_y, width, height)))
+            } // Return error of NoDisplayServer
+            else {
+                Err(KWindowError::NoDisplayServer)
+            }
         }
 }
-
-/// Get the X11 linux display server window manager.
-/// 
-/// Returns Ok([KWindowManager]) if successful.
-/// 
-/// # Error(s)
-/// Returns Err([KWindowError::NoDisplayServer]) if not compatible with X11.
-#[cfg(not(wayland))]
-pub fn get_linux_window_manager(pos_x:isize, pos_y:isize, width:usize, height:usize) -> Result<Box<dyn KWindowManager>, KWindowError> {
-    use crate::kleio::window::linux::x11::KWindowManagerX11;
-
-        if KWindowManagerX11::is_compatible() {
-            Ok(Box::new(KWindowManagerX11::new(pos_x, pos_y, width, height)))
-        } // Return error of NoDisplayServer
-        else {
-            Err(KWindowError::NoDisplayServer)
-        }
-}
-*/

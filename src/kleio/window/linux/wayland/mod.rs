@@ -11,6 +11,27 @@ use self::bind::{wl_display_connect, wl_display, wl_display_disconnect};
 #[allow(non_camel_case_types)]    // Imported C global aren't formatted according to convention.
 pub mod bind;
 
+
+
+pub struct WaylandDisplayServer {
+
+}
+
+impl WaylandDisplayServer {
+    pub fn new(pos_x:isize, pos_y:isize, width:usize, height:usize) -> WaylandDisplayServer {
+        WaylandDisplayServer {}
+    }
+}
+
+impl super::KLinuxDisplayServer for WaylandDisplayServer{
+    fn is_compatible() -> bool where Self:Sized {
+        todo!()
+    }
+
+    fn pop_event(&mut self) -> KEvent {
+        todo!()
+    }
+}
 /*
 /// # Wayland KWindow backend
 pub struct KWindowManagerWayland {

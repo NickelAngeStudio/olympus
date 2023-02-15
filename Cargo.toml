@@ -11,7 +11,7 @@ license = "MIT"
 
 
 [features]
-git_workflow = [] # Flag feature for GitHub Workflow.
+no_wayland = [] # Remove Wayland support for Linux
 
 
 [dependencies]
