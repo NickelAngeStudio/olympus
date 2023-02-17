@@ -1,4 +1,4 @@
-use olympus::kleio::display::{screen::{KScreenList, KScreen, KScreenResolution}, linux::LinuxDisplayServerProvider};
+use olympus::kleio::display::{screen::{KScreenList, KScreen, KScreenResolution} };
 
 use crate::{ assert_ok};
 
@@ -17,10 +17,11 @@ use crate::{ assert_ok};
 /// V1 | KScreenList::new() create KScreenList without error.
 /// V2 | Function test_kscreen_list_fields doesn't fail asserts.
 fn kscreen_list_new() {
-    #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux"))))]
+
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
     {
         // V1 | KScreenList::new() create KScreenList without error. X11
-        let kl = assert_ok!(KScreenList::new(LinuxDisplayServerProvider::X11));
+        let kl = assert_ok!(KScreenList::new(olympus::kleio::display::linux::LinuxDisplayServerProvider::X11));
         print_screen_list(&kl);
 
         // V2 | Function test_kscreen_list_fields doesn't fail asserts.
@@ -30,7 +31,7 @@ fn kscreen_list_new() {
         TODO:Disabled until Wayland implementation
         #[cfg(not(feature="no_wayland"))]     // Add Wayland if not remove via feature.
         {
-            let kl = assert_ok!(KScreenList::new(LinuxDisplayServerProvider::Wayland));
+            let kl = assert_ok!(KScreenList::new(olympus::kleio::display::linux::LinuxDisplayServerProvider::Wayland));
             print_screen_list(&kl);
             test_kscreen_list_fields(&kl);
         }
