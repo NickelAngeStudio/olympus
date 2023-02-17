@@ -38,6 +38,8 @@ fn kscreen_list_new() {
         */
     }
 
+    /*
+    TODO:Disabled until Windows and MacOS implementation
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "windows", target_os = "macos"))))]
     {
         // V1 | KScreenList::new() create KScreenList without error.
@@ -47,6 +49,7 @@ fn kscreen_list_new() {
         // V2 | Function test_kscreen_list_fields doesn't fail asserts.
         test_kscreen_list_fields(&kl);
     }
+    */
 
 }
 

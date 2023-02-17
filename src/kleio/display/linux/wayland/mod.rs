@@ -1,5 +1,3 @@
-use std::panic::catch_unwind;
-
 use crate::kleio::display::{event::KEvent, KWindowError};
 
 use self::bind::{wl_display_connect, wl_display, wl_display_disconnect};

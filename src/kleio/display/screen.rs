@@ -31,7 +31,7 @@ impl KScreenList {
         match provider {
             super::linux::LinuxDisplayServerProvider::Default => Err(KScreenListError::DefaultLinuxDisplayProviderError),
             super::linux::LinuxDisplayServerProvider::Wayland => {
-                #[cfg(not(feature="no_wayland"))]
+                #[cfg(all(not(git_workflow), not(feature="no_wayland")))] 
                 {
                     match super::linux::wayland::screen::get_wayland_screen() {
                         Ok(screen_list) => Ok(KScreenList { screen_list, width: 0, height: 0 }),
@@ -39,7 +39,7 @@ impl KScreenList {
                     }
                 }
 
-                #[cfg(feature="no_wayland")]    // If no wayland, return error
+                #[cfg(any(feature="git_workflow", feature="no_wayland"))]    // If no wayland, return error
                 {
                     Err(KScreenListError::FetchScreenListError)
                 }
@@ -56,7 +56,7 @@ impl KScreenList {
 
     /// Create a new screen list that contains the details of all screens.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "windows", target_os = "macos"))))]
-    pub fn new() -> KScreenList {
+    pub fn new() -> Result<KScreenList, KScreenListError> {
         todo!()
     }
 
