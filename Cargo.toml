@@ -11,8 +11,8 @@ license = "MIT"
 
 
 [features]
-no_wayland = [] # Remove Wayland support for Linux
-
+no_wayland = []     # Remove Wayland support for Linux
+git_workflow = []   # Used to identify that tests are runned by Git Workflow
 
 [dependencies]
 

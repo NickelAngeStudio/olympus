@@ -1,7 +1,7 @@
 use std::{panic::catch_unwind};
 use std::os::raw::{ c_int };
-use crate::kleio::window::{ KWindowMotionMode, event::KEventDispatcher, event::KEventDispatcherError, KWindowError};
-use crate::kleio::window::{linux::x11::{bind::{XDefaultRootWindow, XCreateSimpleWindow, XMapWindow, XSelectInput, XSync, XEventsQueued}, 
+use crate::kleio::display::{ KWindowMotionMode, event::KEventDispatcher, event::KEventDispatcherError, KWindowError};
+use crate::kleio::display::{linux::x11::{bind::{XDefaultRootWindow, XCreateSimpleWindow, XMapWindow, XSelectInput, XSync, XEventsQueued}, 
     constant::{KeyPressMask, ButtonPressMask, ExposureMask, KeyPress, KeyRelease, ButtonPress, MotionNotify, LeaveNotify, 
     ButtonRelease, EnterNotify, FocusIn, FocusOut, KeymapNotify, Expose, GraphicsExpose, NoExpose, VisibilityNotify, 
     CreateNotify, DestroyNotify, UnmapNotify, MapNotify, MapRequest, ReparentNotify, ConfigureNotify, ConfigureRequest, 
@@ -25,6 +25,9 @@ pub mod event;
 /// Contains X11 C functions Bind
 pub mod bind;
 
+/// Contains X11 screen fetch function
+pub mod screen;
+
 
 
 /// # X11 display server backend
@@ -41,14 +44,16 @@ pub struct X11DisplayServer {
 
 /// Public [KWindowX11] members.
 impl X11DisplayServer {
-    pub fn new(pos_x:isize, pos_y:isize, width:usize, height:usize) -> X11DisplayServer {
+    pub fn new(width:usize, height:usize) -> X11DisplayServer {
         unsafe {
             // Create display connection
             let display = XOpenDisplay(std::ptr::null());
             println!("Display={:?}", display);
+
+            // Get windows 
             
             // Create window
-            let window = XCreateSimpleWindow(display, XDefaultRootWindow(display), pos_x as i32, pos_y as i32,
+            let window = XCreateSimpleWindow(display, XDefaultRootWindow(display), 0,0,
                     width as u32, height as u32, 4, 0, 0);
 
             // Map window to display

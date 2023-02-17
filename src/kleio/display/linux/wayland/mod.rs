@@ -1,6 +1,6 @@
 use std::panic::catch_unwind;
 
-use crate::kleio::window::{event::KEvent, KWindowError};
+use crate::kleio::display::{event::KEvent, KWindowError};
 
 use self::bind::{wl_display_connect, wl_display, wl_display_disconnect};
 
@@ -11,14 +11,15 @@ use self::bind::{wl_display_connect, wl_display, wl_display_disconnect};
 #[allow(non_camel_case_types)]    // Imported C global aren't formatted according to convention.
 pub mod bind;
 
-
+/// Contains Wayland screen fetch function
+pub mod screen;
 
 pub struct WaylandDisplayServer {
 
 }
 
 impl WaylandDisplayServer {
-    pub fn new(pos_x:isize, pos_y:isize, width:usize, height:usize) -> WaylandDisplayServer {
+    pub fn new(width:usize, height:usize) -> WaylandDisplayServer {
         WaylandDisplayServer {}
     }
 }
