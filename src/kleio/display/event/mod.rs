@@ -28,8 +28,6 @@ pub mod controller;
 #[doc(hidden)]
 pub mod dispatcher;
 
-
-
 /// Union of possible events into an enumeration.
 #[derive(Copy, Clone)]
 pub enum KEvent {

@@ -22,6 +22,10 @@ pub type Display = c_ulong;
 #[cfg(any(doc, all(not(target_family = "wasm"), target_os = "linux")))]
 #[cfg_attr(docsrs, doc(cfg(any(target_os = "linux"))))]
 pub enum LinuxDisplayServerProvider {
+
+    /// Used when specifying provider with [get_linux_display_server].
+    Default,
+
     /// [Wayland](https://en.wikipedia.org/wiki/Wayland_(protocol)) display server.
     Wayland,
 
@@ -43,13 +47,15 @@ pub trait KLinuxDisplayServer  {
 
 }
 
-/// Get the appropriate linux display server. Will try to open Wayland first then X11.
+/// Get the appropriate linux display server. 
+/// 
+/// If provider is set to default, Will try to open Wayland first then X11.
 /// 
 /// Returns Ok(Box<dyn KLinuxDisplayServer>) if successful.
 /// 
 /// # Error(s)
 /// Returns Err([KWindowError::NoDisplayServer]) if no compatible display server found.
-pub fn get_linux_display_server(pos_x:isize, pos_y:isize, width:usize, height:usize) -> Result<Box<dyn KLinuxDisplayServer>, KWindowError> {
+pub fn get_linux_display_server(width:usize, height:usize, provider : LinuxDisplayServerProvider) -> Result<Box<dyn KLinuxDisplayServer>, KWindowError> {
         
         use x11::X11DisplayServer;
         
@@ -58,22 +64,37 @@ pub fn get_linux_display_server(pos_x:isize, pos_y:isize, width:usize, height:us
         {
             use wayland::WaylandDisplayServer;
 
-            // Use Wayland display server if compatible
-            if WaylandDisplayServer::is_compatible() {
-                Ok(Box::new(WaylandDisplayServer::new(pos_x, pos_y, width, height)))
-            } // Else use X11 display server
-            else if X11DisplayServer::is_compatible() {
-                Ok(Box::new(X11DisplayServer::new(pos_x, pos_y, width, height)))
-            } // Return error of NoDisplayServer
-            else {
-                Err(KWindowError::NoDisplayServer)
+            match provider {
+                LinuxDisplayServerProvider::Default => // Try Wayland first then X11
+                    if WaylandDisplayServer::is_compatible() {
+                        Ok(Box::new(WaylandDisplayServer::new(width, height)))
+                    } // Else use X11 display server
+                    else if X11DisplayServer::is_compatible() {
+                        Ok(Box::new(X11DisplayServer::new(width, height)))
+                    } // Return error of NoDisplayServer
+                    else {
+                        Err(KWindowError::NoDisplayServer)
+                    },
+                LinuxDisplayServerProvider::Wayland => // Only try Wayland.
+                    if WaylandDisplayServer::is_compatible() {
+                        Ok(Box::new(WaylandDisplayServer::new(width, height)))
+                    } else {
+                        Err(KWindowError::NoDisplayServer)
+                    },
+                LinuxDisplayServerProvider::X11 =>  // Only try x11.
+                    if X11DisplayServer::is_compatible() {
+                    Ok(Box::new(X11DisplayServer::new(width, height)))
+                    } // Return error of NoDisplayServer
+                    else {
+                        Err(KWindowError::NoDisplayServer)
+                    },
             }
         }
 
         #[cfg(feature="no_wayland")]
         {
             if X11DisplayServer::is_compatible() {
-                Ok(Box::new(X11DisplayServer::new(pos_x, pos_y, width, height)))
+                Ok(Box::new(X11DisplayServer::new(width, height)))
             } // Return error of NoDisplayServer
             else {
                 Err(KWindowError::NoDisplayServer)

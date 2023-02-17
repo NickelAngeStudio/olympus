@@ -17,6 +17,7 @@ pub const KWINDOW_MAX_HEIGHT : usize = 65535;
 
 
 /// Enumeration of possible [KWindow] errors.
+#[derive(Debug)]
 pub enum KWindowError {
 
     /// Happens when a window manager is not supported.
@@ -31,15 +32,6 @@ pub enum KWindowError {
 
 }
 
-
-impl std::fmt::Debug for KWindowError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            _ => write!(f, "KWindowError"),
-        }
-    }
-}
-
 /// Enumeration of possible [KWindow] motion mode.
 pub enum KWindowMotionMode {
     /// [KEventMouse] events will give the (x,y) location of the cursor on the window. 
@@ -52,6 +44,8 @@ pub enum KWindowMotionMode {
     /// Usually used for 3d camera and direct mouse inputs.
     Acceleration,
 }
+
+
 
 /// Create and manage a window frame for display.
 /// 
@@ -73,7 +67,10 @@ pub struct KWindow {
 }
 
 impl KWindow {
-    /// Create a new [KWindow] using position and size with option to set fullscreen or not.
+    /// Create a new sized [KWindow] in the middle of the main default screen.
+    /// 
+    /// Display server provider can be set to preferred display server or default. This will try to create a 
+    /// [Wayland](https://en.wikipedia.org/wiki/Wayland_(protocol)) window first then a [x11](https://en.wikipedia.org/wiki/X_Window_System) window if not compatible with Wayland.
     /// 
     /// Return New [`KWindow`].
     /// 
@@ -82,15 +79,12 @@ impl KWindow {
     /// Returns [KWindowError::NoDisplayServer] if no display server found on Linux.
     /// 
     /// Returns [KWindowError::WindowSizeError] if width and/or height aren't within allowed boundaries.
-    /// 
-    /// # Note(s)
-    /// On Linux distribution, this will try to create a [Wayland](https://en.wikipedia.org/wiki/Wayland_(protocol)) window first
-    /// then a [x11](https://en.wikipedia.org/wiki/X_Window_System) window if not compatible with Wayland.
-    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-    pub fn new(pos_x:isize, pos_y:isize, width:usize, height:usize, fullscreen : bool) -> Result<KWindow, KWindowError> {
-        #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
+    pub fn new(width:usize, height:usize, provider : super::linux::LinuxDisplayServerProvider) -> Result<KWindow, KWindowError> {
+        #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux"))))]
 
         // Make sure dimension are within boundaries.
+
         if KWindow::is_size_within_boundaries(width, height) {
             // Default motion mode
             let motion_mode = KWindowMotionMode::Location;
@@ -101,15 +95,41 @@ impl KWindow {
             // Linux implementation
             #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
             {
-                match super::linux::get_linux_display_server(pos_x, pos_y, width, height) {
+                match super::linux::get_linux_display_server(width, height, provider) {
                     Ok(display_server) => {
                         let kwindow = KWindow { motion_mode, center, display_server };
-                        kwindow.set_fullscreen(fullscreen);
                         Ok(kwindow)
                     },
                     Err(err) => Err(err),
                 }
             }
+
+        } else {
+            Err(KWindowError::WindowSizeError)
+        }
+
+    }
+
+    /// Create a new sized [KWindow] in the middle of the main default screen.
+    /// 
+    /// Return New [`KWindow`].
+    /// 
+    /// 
+    /// # Error(s)
+    /// Returns [KWindowError::WindowSizeError] if width and/or height aren't within allowed boundaries.
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "windows", target_os = "macos"))))]
+    pub fn new(width:usize, height:usize) -> Result<KWindow, KWindowError> {
+        #![cfg_attr(docsrs, doc(cfg(any(target_os = "windows", target_os = "macos"))))]
+
+        // Make sure dimension are within boundaries.
+        if KWindow::is_size_within_boundaries(width, height) {
+            // Default motion mode
+            let motion_mode = KWindowMotionMode::Location;
+
+            // Default center position
+            let center = ((width as i32 / 2), (height as i32 / 2));
+
+            todo!()
 
         } else {
             Err(KWindowError::WindowSizeError)

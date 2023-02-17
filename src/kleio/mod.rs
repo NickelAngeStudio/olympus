@@ -4,5 +4,5 @@ pub mod journal;
 /// Kleio Asset manager.
 pub mod asset;
 
-/// Kleio window interface
-pub mod window;
+/// Kleio display interface
+pub mod display;

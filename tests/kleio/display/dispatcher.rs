@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use olympus::kleio::window::event::{ KEvent, KEventReceiver, KEventController, KEventKeyboard, KEventMouse, KEventWindow, KEventDispatcher, KEventDispatcherError};
+use olympus::kleio::display::event::{ KEvent, KEventReceiver, KEventController, KEventKeyboard, KEventMouse, KEventWindow, KEventDispatcher, KEventDispatcherError};
 
 use crate::{assert_err, assert_ok};
 

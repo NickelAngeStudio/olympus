@@ -6,5 +6,5 @@ pub mod asset;
 pub mod journal;
 
 
-// Contains integration and unit tests for Kleio KWindow and KEvent
-pub mod window;
+// Contains integration and unit tests for Kleio display
+pub mod display;
