@@ -1,8 +1,8 @@
 use std::os::raw::{ c_ulong };
-use super::{ KWindowError, event::KEvent, KWindowMotionMode};
+use super::{ KWindowError, event::KEvent};
 
 /// Wayland KWindowManager
-#[cfg(not(feature="no_wayland"))]     // Add Wayland if not remove via feature.
+#[cfg(all(not(git_workflow), not(feature="no_wayland")))]     // Add Wayland if not remove via feature.
 pub mod wayland;
 
 /// X11 KWindowManager
@@ -60,7 +60,7 @@ pub fn get_linux_display_server(width:usize, height:usize, provider : LinuxDispl
         use x11::X11DisplayServer;
         
 
-        #[cfg(not(feature="no_wayland"))]
+        #[cfg(all(not(git_workflow), not(feature="no_wayland")))] 
         {
             use wayland::WaylandDisplayServer;
 
@@ -91,7 +91,7 @@ pub fn get_linux_display_server(width:usize, height:usize, provider : LinuxDispl
             }
         }
 
-        #[cfg(feature="no_wayland")]
+        #[cfg(any(feature="git_workflow", feature="no_wayland"))]
         {
             if X11DisplayServer::is_compatible() {
                 Ok(Box::new(X11DisplayServer::new(width, height)))
