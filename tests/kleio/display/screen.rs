@@ -11,6 +11,7 @@ use crate::{ assert_ok};
 * TESTS *
 ********/
 #[test]
+#[ignore]   // Ignored by default since it required a screen to test.
 /// Create a new KScreenList and test fields values.
 /// 
 /// # Verification(s)

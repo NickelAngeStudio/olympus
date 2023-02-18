@@ -1,5 +1,6 @@
 use std::{panic::catch_unwind};
 use std::os::raw::{ c_int };
+use crate::kleio::display::event::KEventWindow;
 use crate::kleio::display::{ KWindowMotionMode, event::KEventDispatcher, event::KEventDispatcherError, KWindowError};
 use crate::kleio::display::{linux::x11::{bind::{XDefaultRootWindow, XCreateSimpleWindow, XMapWindow, XSelectInput, XSync, XEventsQueued}, 
     constant::{KeyPressMask, ButtonPressMask, ExposureMask, KeyPress, KeyRelease, ButtonPress, MotionNotify, LeaveNotify, 
@@ -10,7 +11,7 @@ use crate::kleio::display::{linux::x11::{bind::{XDefaultRootWindow, XCreateSimpl
 
 use self::{event::{ XEvent }, bind::{XOpenDisplay, XCloseDisplay, XNextEvent}, constant::{KeyReleaseMask, ButtonReleaseMask, LeaveWindowMask, EnterWindowMask, Button1MotionMask, PointerMotionMask, Button3MotionMask, Button2MotionMask, Button5MotionMask, Button4MotionMask, ButtonMotionMask, StructureNotifyMask, ResizeRedirectMask, VisibilityChangeMask, FocusChangeMask, PropertyChangeMask}};
 
-use super::{ Display, Window, KLinuxDisplayServer };
+use super::{ Display, Window, KLinuxDisplayServer, LinuxDisplayServerProvider };
 
 /// Contains X11 contants definition
 #[allow(unused)]                    // Remove unused variable notification
@@ -44,11 +45,10 @@ pub struct X11DisplayServer {
 
 /// Public [KWindowX11] members.
 impl X11DisplayServer {
-    pub fn new(width:usize, height:usize) -> X11DisplayServer {
+    pub fn new(width:u32, height:u32) -> X11DisplayServer {
         unsafe {
             // Create display connection
             let display = XOpenDisplay(std::ptr::null());
-            println!("Display={:?}", display);
 
             // Get windows 
             
@@ -125,8 +125,68 @@ impl KLinuxDisplayServer for X11DisplayServer {
         }
     }
 
+    #[allow(non_upper_case_globals)]            // Imported C members aren't formatted according to convention.
     fn pop_event(&mut self) -> KEvent {
-        todo!()
+        unsafe {
+            XNextEvent(self.display, &mut self.event);            
+            
+            match self.event._type {
+                KeyPress => { println!("KWindow({:p}), KeyPress({})", self, self.event._type); 
+                    KEvent::Keyboard(KEventKeyboard::KeyDown(self.event._xkey._keycode)) },
+                KeyRelease=> { println!("KWindow({:p}), KeyRelease({})", self, self.event._type); KEvent::Unknown },
+                ButtonPress=> { println!("KWindow({:p}), ButtonPress({})", self, self.event._type); KEvent::Unknown },
+                ButtonRelease=> { println!("KWindow({:p}), ButtonRelease({})", self, self.event._type); KEvent::Unknown },
+                MotionNotify=> {
+                    KEvent::Mouse(KEventMouse::Moved((self.event._xmotion._x, self.event._xmotion._y)))
+                },
+                EnterNotify=> { println!("KWindow({:p}), EnterNotify({})", self, self.event._type); KEvent::Unknown },
+                LeaveNotify=> { println!("KWindow({:p}), LeaveNotify({})", self, self.event._type); KEvent::Unknown },
+                FocusIn=> KEvent::Window(KEventWindow::Focus()),
+                FocusOut=> KEvent::Window(KEventWindow::Blur()),
+                KeymapNotify=> { println!("KWindow({:p}), KeymapNotify({})", self, self.event._type); KEvent::Unknown },
+                Expose=> { println!("KWindow({:p}), Expose({})", self, self.event._type); KEvent::Unknown },
+                GraphicsExpose=> { println!("KWindow({:p}), GraphicsExpose({})", self, self.event._type); KEvent::Unknown },
+                NoExpose=> { println!("KWindow({:p}), NoExpose({})", self, self.event._type); KEvent::Unknown },
+                VisibilityNotify=> { println!("KWindow({:p}), VisibilityNotify({})", self, self.event._type); KEvent::Unknown },
+                CreateNotify=> { println!("KWindow({:p}), CreateNotify({})", self, self.event._type); KEvent::Unknown },
+                DestroyNotify=> { println!("KWindow({:p}), DestroyNotify({})", self, self.event._type); KEvent::Unknown },
+                UnmapNotify=> { println!("KWindow({:p}), UnmapNotify({})", self, self.event._type); KEvent::Unknown },
+                MapNotify=> { println!("KWindow({:p}), MapNotify({})", self, self.event._type); KEvent::Unknown },
+                MapRequest=> { println!("KWindow({:p}), MapRequest({})", self, self.event._type); KEvent::Unknown },
+                ReparentNotify=> { println!("KWindow({:p}), ReparentNotify({})", self, self.event._type); KEvent::Unknown },
+                ConfigureNotify=> { println!("KWindow({:p}), ConfigureNotify({})", self, self.event._type); KEvent::Unknown },
+                ConfigureRequest=> { println!("KWindow({:p}), ConfigureRequest({})", self, self.event._type); KEvent::Unknown },
+                GravityNotify=> { println!("KWindow({:p}), GravityNotify({})", self, self.event._type); KEvent::Unknown },
+                ResizeRequest=> { println!("KWindow({:p}), ResizeRequest({})", self, self.event._type); KEvent::Unknown },
+                CirculateNotify=> { println!("KWindow({:p}), CirculateNotify({})", self, self.event._type); KEvent::Unknown },
+                CirculateRequest=> { println!("KWindow({:p}), CirculateRequest({})", self, self.event._type); KEvent::Unknown },
+                PropertyNotify=> { println!("KWindow({:p}), PropertyNotify({})", self, self.event._type); KEvent::Unknown },
+                SelectionClear=> { println!("KWindow({:p}), SelectionClear({})", self, self.event._type); KEvent::Unknown },
+                SelectionRequest=> { println!("KWindow({:p}), SelectionRequest({})", self, self.event._type); KEvent::Unknown },
+                SelectionNotify=> { println!("KWindow({:p}), SelectionNotify({})", self, self.event._type); KEvent::Unknown },
+                ColormapNotify=> { println!("KWindow({:p}), ColormapNotify({})", self, self.event._type); KEvent::Unknown },
+                ClientMessage=> { println!("KWindow({:p}), ClientMessage({})", self, self.event._type); KEvent::Unknown },
+                MappingNotify=> { println!("KWindow({:p}), MappingNotify({})", self, self.event._type); KEvent::Unknown },
+                GenericEvent=> { println!("KWindow({:p}), GenericEvent({})", self, self.event._type); KEvent::Unknown },
+                _ => { println!("KWindow({:p}), _({})", self, self.event._type); KEvent::Unknown },
+            }
+        }
+    }
+
+    fn get_provider(&self) -> LinuxDisplayServerProvider {
+        LinuxDisplayServerProvider::X11
+    }
+
+    fn get_event_count(&self) -> usize {
+        unsafe {
+            XEventsQueued(self.display, 0).try_into().unwrap()
+        }   
+    }
+
+    fn sync_events(&self) {
+        unsafe {
+            XSync(self.display, false);
+        }
     }
 }
 

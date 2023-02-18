@@ -2,6 +2,8 @@ use crate::kleio::display::{event::KEvent, KWindowError};
 
 use self::bind::{wl_display_connect, wl_display, wl_display_disconnect};
 
+use super::LinuxDisplayServerProvider;
+
 
 /// Waylind C function binds
 #[allow(unused)]                    // Remove unused variable notification
@@ -17,7 +19,7 @@ pub struct WaylandDisplayServer {
 }
 
 impl WaylandDisplayServer {
-    pub fn new(width:usize, height:usize) -> WaylandDisplayServer {
+    pub fn new(width:u32, height:u32) -> WaylandDisplayServer {
         WaylandDisplayServer {}
     }
 }
@@ -28,6 +30,18 @@ impl super::KLinuxDisplayServer for WaylandDisplayServer{
     }
 
     fn pop_event(&mut self) -> KEvent {
+        todo!()
+    }
+
+    fn get_provider(&self) -> super::LinuxDisplayServerProvider {
+        LinuxDisplayServerProvider::Wayland
+    }
+
+    fn get_event_count(&self) -> usize {
+        todo!()
+    }
+
+    fn sync_events(&self) {
         todo!()
     }
 }

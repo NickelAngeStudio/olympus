@@ -1,19 +1,19 @@
-use super::event::{ KEvent, KEventDispatcher};
+use super::{event::{ KEvent, KEventDispatcher}, screen::KScreenList};
 
 #[allow(unused_imports)]
 use super::event::{ KEventMouse, KEventReceiver };
 
 /// Minimum [KWindow] width allowed.
-pub const KWINDOW_MIN_WIDTH : usize = 1;
+pub const KWINDOW_MIN_WIDTH : u32 = 1;
 
 /// Minimum [KWindow] height allowed.
-pub const KWINDOW_MIN_HEIGHT : usize = 1;
+pub const KWINDOW_MIN_HEIGHT : u32 = 1;
 
 /// Maximum [KWindow] width allowed.
-pub const KWINDOW_MAX_WIDTH : usize = 65535;
+pub const KWINDOW_MAX_WIDTH : u32 = 65535;
 
 /// Maximum [KWindow] height allowed.
-pub const KWINDOW_MAX_HEIGHT : usize = 65535;
+pub const KWINDOW_MAX_HEIGHT : u32 = 65535;
 
 
 /// Enumeration of possible [KWindow] errors.
@@ -29,10 +29,14 @@ pub enum KWindowError {
     /// Happens when trying to resize a [KWindow] outside of allowed boundaries.
     WindowSizeError,
 
+    /// Happens when trying get hardware screen details failed.
+    ScreenDetailError,
+
 
 }
 
 /// Enumeration of possible [KWindow] motion mode.
+#[derive(Debug, PartialEq)]
 pub enum KWindowMotionMode {
     /// [KEventMouse] events will give the (x,y) location of the cursor on the window. 
     /// 
@@ -54,10 +58,13 @@ pub enum KWindowMotionMode {
 /// TODO: More doc about OS, dispatch, and Examples
 pub struct KWindow {
 
-    /// X11 Motion mode,
+    /// Hardware screen list
+    screen_list : KScreenList,
+
+    /// Motion mode,
     motion_mode : KWindowMotionMode,
 
-    /// X11 Window center,
+    /// Window center,
     center : (i32, i32),
 
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
@@ -80,11 +87,10 @@ impl KWindow {
     /// 
     /// Returns [KWindowError::WindowSizeError] if width and/or height aren't within allowed boundaries.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
-    pub fn new(width:usize, height:usize, provider : super::linux::LinuxDisplayServerProvider) -> Result<KWindow, KWindowError> {
+    pub fn new(width:u32, height:u32, provider : super::linux::LinuxDisplayServerProvider) -> Result<KWindow, KWindowError> {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux"))))]
 
         // Make sure dimension are within boundaries.
-
         if KWindow::is_size_within_boundaries(width, height) {
             // Default motion mode
             let motion_mode = KWindowMotionMode::Location;
@@ -97,8 +103,14 @@ impl KWindow {
             {
                 match super::linux::get_linux_display_server(width, height, provider) {
                     Ok(display_server) => {
-                        let kwindow = KWindow { motion_mode, center, display_server };
-                        Ok(kwindow)
+                        match KScreenList::new(display_server.get_provider()){
+                            Ok(screen_list) => {
+                                let kwindow = KWindow { screen_list, motion_mode, center, display_server };
+                                Ok(kwindow)
+                            },
+                            Err(_) => Err(KWindowError::ScreenDetailError),
+                        }
+                        
                     },
                     Err(err) => Err(err),
                 }
@@ -118,7 +130,7 @@ impl KWindow {
     /// # Error(s)
     /// Returns [KWindowError::WindowSizeError] if width and/or height aren't within allowed boundaries.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "windows", target_os = "macos"))))]
-    pub fn new(width:usize, height:usize) -> Result<KWindow, KWindowError> {
+    pub fn new(width:u32, height:u32) -> Result<KWindow, KWindowError> {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "windows", target_os = "macos"))))]
 
         // Make sure dimension are within boundaries.
@@ -152,6 +164,9 @@ impl KWindow {
     /// 
     /// Returns a pair of (# event handled, # event unhandled).
     /// 
+    /// # Note(s)
+    /// After dispatching events, [KWindow::sync_events()] will be called automatically.
+    /// 
     /// # Example(s)
     /// Dispatching at each loop call in Main loop
     /// ```
@@ -169,39 +184,33 @@ impl KWindow {
     /// }
     /// ```
     pub fn dispatch_events(&mut self, dispatcher : &mut KEventDispatcher) -> (u32, u32) {
-        todo!()
 
-        /*
-        let handled = 0;
-        let unhandled = 0;
+        // Counter of handled/unhandled events
+        let mut handled:(u32,u32) = (0,0);
 
         // First get the event count to poll. This is important to prevent bloking.
-        let event_count = self.window_manager.get_event_count();
-
-        // Count of unknown events.
-        let mut unknown_count:usize = 0;
+        let event_count = self.get_event_count();
 
         for _ in 0..event_count {
             // Fetch event
-            let event = self.window_manager.poll_event();
+            let event = self.pop_event();
 
-            match event {
-                // Unknown event are ignored and deduced from event_count
-                KEvent::Unknown => {
-                    unknown_count = unknown_count + 1;
-                },
-                _ => {
-                    // Iterate enabled receivers from newest to oldest
-                    for receiver in self.receivers.iter().rev().filter(|x| x.borrow().is_enabled() ) {
-                        
-                        let mut receiver = receiver.borrow_mut();
-                        if receiver.receive(&event) {
-                            break;  // Break loop since event was handled
-                        }
-                    }
-                },
+            // Let KWindow handle event first.
+            if !self.handle_kwindow_event(&event){
+
+                // Then dispatch event via dispatcher.
+                if dispatcher.dispatch(&event) {
+                    handled.0 += 1;
+                } else {
+                    handled.1 += 1;
+                }
             }
-         */
+        }
+
+        // Sync events with display server
+        self.sync_events();
+
+        handled
     }
 
     /// Binding cursor prevent cursor from exiting windows boundaries when focused.
@@ -210,6 +219,13 @@ impl KWindow {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         todo!()
     }
+
+     /// Get the cursor position with as a pair (x,y).
+     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
+     pub fn get_cursor_position(&self) -> (i32, i32) {
+         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
+         todo!()
+     }
 
     /// Get the display server provider identification.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
@@ -234,7 +250,17 @@ impl KWindow {
 
     /// Get the count of events that need handling.
     pub fn get_event_count(&self) -> usize {
-        todo!()
+        
+        #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
+        {
+            self.display_server.get_event_count()
+        }
+
+        #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "android", target_os = "ios", target_os = "windows", target_os = "macos"))))]
+        {
+            todo!()
+        }
+
     }
 
     /// Get the motion mode for the [KWindow] [KEventMouse](enum.KEventMouse.html) events.
@@ -246,16 +272,21 @@ impl KWindow {
 
      /// Returns position (x,y) of the [KWindow].
      #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-     pub fn get_position(&self) -> (isize, isize) {
+     pub fn get_position(&self) -> (i32, i32) {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         todo!()
      }
 
-     /// Returns dimension (width, height) of the [KWindow].
-     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-    pub fn get_size(&self) -> (usize, usize) {
+    /// Returns dimension (width, height) of the [KWindow].
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
+    pub fn get_size(&self) -> (u32, u32) {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         todo!()
+    }
+
+    /// Returns list of connected screens with details.
+    pub fn get_screen_list(&self) -> &KScreenList {
+        &self.screen_list
     }
 
     /// Returns the [KWindow] title. 
@@ -272,14 +303,14 @@ impl KWindow {
 
     /// Get if the cursor is binded to the window, preventing it from going further than window boundaries.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-    pub fn is_cursor_binded(&self) {
+    pub fn is_cursor_binded(&self) -> bool {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         todo!()
     }
 
     /// Get if the default operating system cursor is hidden.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-    pub fn is_cursor_hidden(&self) {
+    pub fn is_cursor_hidden(&self) -> bool {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         todo!()
     }
@@ -336,7 +367,7 @@ impl KWindow {
 
     /// Set position of [KWindow] according to position (x,y).
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-    pub fn set_position(&self, position : (isize, isize)){
+    pub fn set_position(&self, position : (i32, i32)){
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         todo!()
     }
@@ -348,28 +379,28 @@ impl KWindow {
     /// # Error(s)
     /// Returns [KWindowError::WindowSizeError] if width and/or height not within allowed boundaries.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-    pub fn set_size(&self, dimension : (usize, usize)) -> Result<u8, KWindowError>{
+    pub fn set_size(&self, dimension : (u32, u32)) -> Result<u8, KWindowError>{
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         todo!()
     }
 
-    /// Set the [KWindow] as fullscreen according to parameters.
+    /// Set the [KWindow] as fullscreen.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-    pub fn set_fullscreen(&self, fullscreen : bool) {
+    pub fn set_fullscreen(&self) {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         todo!()
     }
 
-    /// Set the [KWindow] as minimized according to parameters.
+    /// Set the [KWindow] as minimized.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-    pub fn set_minimized(&self, minimized : bool) {
+    pub fn set_minimized(&self) {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         todo!()
     }
 
-    /// Set the [KWindow] as maximized according to parameters.
+    /// Set the [KWindow] as maximized.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-    pub fn set_maximized(&self, maximized : bool) {
+    pub fn set_maximized(&self) {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         todo!()
     }
@@ -402,6 +433,26 @@ impl KWindow {
         todo!()
     }
 
+    /// Sync all event between client and display server / window manager. 
+    /// 
+    /// This need to be called at each loop if using [KWindow::poll_event()] instead of [KWindow::dispatch_events()].
+    pub fn sync_events(&self) {
+        
+        #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
+        {
+            self.display_server.sync_events()
+        }
+
+        #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "android", target_os = "ios", target_os = "windows", target_os = "macos"))))]
+        {
+            todo!()
+        }
+
+    }
+
+
+
+
     /// Unbinding cursor let the cursor exits window boundaries when focused.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
     pub fn unbind_cursor(&mut self){
@@ -415,7 +466,7 @@ impl KWindow {
 #[doc(hidden)]
 impl KWindow {
     /// Return True if width and size are between boundaries.
-    fn is_size_within_boundaries(width:usize, height:usize) -> bool {
+    fn is_size_within_boundaries(width:u32, height:u32) -> bool {
 
         if width >= KWINDOW_MIN_WIDTH && width <= KWINDOW_MAX_WIDTH && height >= KWINDOW_MIN_HEIGHT && height <= KWINDOW_MAX_HEIGHT {
             // Withing boundaries
@@ -425,5 +476,27 @@ impl KWindow {
             false
         }
 
+    }
+
+    /// Pop an event from event queue
+    fn pop_event(&mut self) -> KEvent {
+        
+        #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
+        {
+            self.display_server.pop_event()
+        }
+
+        #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "android", target_os = "ios", target_os = "windows", target_os = "macos"))))]
+        {
+            todo!()
+        }
+    }
+
+    /// Handle events use for [KWindow] like resizing, closing, etc...
+    /// 
+    /// Returns true if event was handle and should not be given to receivers.
+    fn handle_kwindow_event(&mut self, event : &KEvent) -> bool {
+        // TODO:Handle
+        false
     }
 }

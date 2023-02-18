@@ -21,6 +21,7 @@ pub type Display = c_ulong;
 /// supported display server and be ready for future addition.
 #[cfg(any(doc, all(not(target_family = "wasm"), target_os = "linux")))]
 #[cfg_attr(docsrs, doc(cfg(any(target_os = "linux"))))]
+#[derive(Debug, PartialEq)]
 pub enum LinuxDisplayServerProvider {
 
     /// Used when specifying provider with [get_linux_display_server].
@@ -45,6 +46,15 @@ pub trait KLinuxDisplayServer  {
     /// Will lock until next event if no events.
     fn pop_event(&mut self) -> KEvent;
 
+    /// Return display server provider id.
+    fn get_provider(&self) -> LinuxDisplayServerProvider;
+
+    /// Returns count of x11 events.
+    fn get_event_count(&self) -> usize;
+
+    /// Sync all event between client and display server / window manager. 
+    fn sync_events(&self);
+
 }
 
 /// Get the appropriate linux display server. 
@@ -55,7 +65,7 @@ pub trait KLinuxDisplayServer  {
 /// 
 /// # Error(s)
 /// Returns Err([KWindowError::NoDisplayServer]) if no compatible display server found.
-pub fn get_linux_display_server(width:usize, height:usize, provider : LinuxDisplayServerProvider) -> Result<Box<dyn KLinuxDisplayServer>, KWindowError> {
+pub fn get_linux_display_server(width:u32, height:u32, provider : LinuxDisplayServerProvider) -> Result<Box<dyn KLinuxDisplayServer>, KWindowError> {
         
         use x11::X11DisplayServer;
         
