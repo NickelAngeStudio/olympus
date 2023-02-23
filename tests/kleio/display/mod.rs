@@ -28,7 +28,7 @@ macro_rules! kwindow_x11_prepare {
     ($kwindow:ident, $dispatcher:ident, $receiver:ident, $test_body:block) => {{
         // Create KWindow
         #[allow(unused_mut)]
-        let mut $kwindow = assert_ok!(KWindow::new(KWINDOW_WIDTH, KWINDOW_HEIGHT, LinuxDisplayServerProvider::X11));
+        let mut $kwindow = assert_ok!(KWindow::new(KWINDOW_WIDTH, KWINDOW_HEIGHT, KLinuxDisplayServerProvider::X11));
 
         // Create dispatcher
         #[allow(unused_mut)]
@@ -45,7 +45,7 @@ macro_rules! kwindow_x11_prepare {
         $test_body
 
         // Last wait loop
-        kwindow_x11_step_loop!($kwindow, $dispatcher, $receiver);
+        kwindow_x11_step_loop!("End of test, press SPACE to exit...", $kwindow, $dispatcher, $receiver);
     }};
 }
 
@@ -53,16 +53,33 @@ macro_rules! kwindow_x11_prepare {
 #[macro_export]
 macro_rules! kwindow_x11_step_loop {
 
-    // This macro call doesn't create KAssetSourceFolder nor the files
+    // Without message
     ($kwindow:ident, $dispatcher:ident, $receiver:ident) => {{
         loop {
-            $kwindow.dispatch_events(&mut $dispatcher);
+            $kwindow.dispatch_events(&mut $dispatcher, true);
             match $receiver.borrow().get_state() {
                 crate::kleio::display::KEventReceiverControlState::Running => {},
                 crate::kleio::display::KEventReceiverControlState::NextStep => break,
                 crate::kleio::display::KEventReceiverControlState::Exit => exit(0),
             }
         }
+        $receiver.borrow_mut().set_state(crate::kleio::display::KEventReceiverControlState::Running);
+    }};
+
+    // With message
+    ($message:expr, $kwindow:ident, $dispatcher:ident, $receiver:ident) => {{
+        print!("{}[2J", 27 as char);
+        println!("\x1b[93m{}\x1b[0m", $message);
+
+        loop {
+            $kwindow.dispatch_events(&mut $dispatcher, true);
+            match $receiver.borrow().get_state() {
+                crate::kleio::display::KEventReceiverControlState::Running => {},
+                crate::kleio::display::KEventReceiverControlState::NextStep => break,
+                crate::kleio::display::KEventReceiverControlState::Exit => exit(0),
+            }
+        }
+        $receiver.borrow_mut().set_state(crate::kleio::display::KEventReceiverControlState::Running);
     }};
 }
 

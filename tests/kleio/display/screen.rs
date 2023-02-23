@@ -22,7 +22,7 @@ fn kscreen_list_new() {
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
     {
         // V1 | KScreenList::new() create KScreenList without error. X11
-        let kl = assert_ok!(KScreenList::new(olympus::kleio::display::linux::LinuxDisplayServerProvider::X11));
+        let kl = assert_ok!(KScreenList::new(olympus::kleio::display::linux::server::KLinuxDisplayServerProvider::X11));
         print_screen_list(&kl);
 
         // V2 | Function test_kscreen_list_fields doesn't fail asserts.

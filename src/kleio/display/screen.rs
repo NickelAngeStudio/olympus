@@ -26,11 +26,11 @@ impl KScreenList {
 
     /// Create a new screen list that contains the details of all screens for display provider.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
-    pub fn new(provider : super::linux::LinuxDisplayServerProvider) -> Result<KScreenList, KScreenListError> {
+    pub fn new(provider : super::linux::server::KLinuxDisplayServerProvider) -> Result<KScreenList, KScreenListError> {
 
         match provider {
-            super::linux::LinuxDisplayServerProvider::Default => Err(KScreenListError::DefaultLinuxDisplayProviderError),
-            super::linux::LinuxDisplayServerProvider::Wayland => {
+            super::linux::server::KLinuxDisplayServerProvider::Default => Err(KScreenListError::DefaultLinuxDisplayProviderError),
+            super::linux::server::KLinuxDisplayServerProvider::Wayland => {
                 #[cfg(all(not(git_workflow), not(feature="no_wayland")))] 
                 {
                     match super::linux::wayland::screen::get_wayland_screen() {
@@ -44,7 +44,7 @@ impl KScreenList {
                     Err(KScreenListError::FetchScreenListError)
                 }
             },
-            super::linux::LinuxDisplayServerProvider::X11 => {
+            super::linux::server::KLinuxDisplayServerProvider::X11 => {
                 match super::linux::x11::screen::get_x11_screen() {
                     Ok(sl) => Ok(KScreenList { screen_list : sl.2 , width:  sl.0, height: sl.1 }),
                     Err(err) => Err(err),

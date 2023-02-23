@@ -1,6 +1,6 @@
 use std::{rc::Rc, cell::RefCell, process::exit};
 
-use olympus::kleio::display::{KWindow, window::{KWINDOW_MIN_WIDTH, KWINDOW_MAX_WIDTH, KWINDOW_MIN_HEIGHT, KWINDOW_MAX_HEIGHT}, KWindowError, linux::LinuxDisplayServerProvider, event::KEventDispatcher};
+use olympus::kleio::display::{KWindow, window::{KWINDOW_MIN_WIDTH, KWINDOW_MAX_WIDTH, KWINDOW_MIN_HEIGHT, KWINDOW_MAX_HEIGHT}, KWindowError, linux::server::KLinuxDisplayServerProvider, event::KEventDispatcher};
 
 use crate::{assert_err, assert_ok, kleio::display::{KEventReceiverControl}, kwindow_x11_prepare, kwindow_x11_step_loop};
 
@@ -26,19 +26,19 @@ pub const KWINDOW_HEIGHT:u32 = 240;
 /// V5 | KWindow::new(x11) created without error.
 fn kwindow_x11_new() {
     // V1 | KWindow::new(x11) width < KWINDOW_MIN_WIDTH should gives KWindowError::WindowSizeError.
-    assert_err!(KWindow::new(KWINDOW_MIN_WIDTH - 1, KWINDOW_HEIGHT, LinuxDisplayServerProvider::X11), KWindowError::WindowSizeError);
+    assert_err!(KWindow::new(KWINDOW_MIN_WIDTH - 1, KWINDOW_HEIGHT, KLinuxDisplayServerProvider::X11), KWindowError::WindowSizeError);
 
     // V2 | KWindow::new(x11) width > KWINDOW_MAX_WIDTH should gives KWindowError::WindowSizeError.
-    assert_err!(KWindow::new(KWINDOW_MAX_WIDTH + 1, KWINDOW_HEIGHT, LinuxDisplayServerProvider::X11), KWindowError::WindowSizeError);
+    assert_err!(KWindow::new(KWINDOW_MAX_WIDTH + 1, KWINDOW_HEIGHT, KLinuxDisplayServerProvider::X11), KWindowError::WindowSizeError);
 
     // V3 | KWindow::new(x11) height < KWINDOW_MIN_HEIGHT should gives KWindowError::WindowSizeError.
-    assert_err!(KWindow::new(KWINDOW_WIDTH, KWINDOW_MIN_HEIGHT - 1, LinuxDisplayServerProvider::X11), KWindowError::WindowSizeError);
+    assert_err!(KWindow::new(KWINDOW_WIDTH, KWINDOW_MIN_HEIGHT - 1, KLinuxDisplayServerProvider::X11), KWindowError::WindowSizeError);
 
     // V4 | KWindow::new(x11) height > KWINDOW_MAX_HEIGHT should gives KWindowError::WindowSizeError.
-    assert_err!(KWindow::new(KWINDOW_WIDTH, KWINDOW_MAX_HEIGHT + 1, LinuxDisplayServerProvider::X11), KWindowError::WindowSizeError);
+    assert_err!(KWindow::new(KWINDOW_WIDTH, KWINDOW_MAX_HEIGHT + 1, KLinuxDisplayServerProvider::X11), KWindowError::WindowSizeError);
 
     // V5 | KWindow::new(x11) created without error.
-    let _kw = assert_ok!(KWindow::new(KWINDOW_WIDTH, KWINDOW_HEIGHT, LinuxDisplayServerProvider::X11));
+    let _kw = assert_ok!(KWindow::new(KWINDOW_WIDTH, KWINDOW_HEIGHT, KLinuxDisplayServerProvider::X11));
 }
 
 #[test]
@@ -52,7 +52,7 @@ fn kwindow_x11_dispatch_events() {
     kwindow_x11_prepare!(wx11, dispatcher, receiver, {
         // V1 | KWindow::dispatch_events() must dispatch without errors.
         loop {
-            wx11.dispatch_events(&mut dispatcher);
+            wx11.dispatch_events(&mut dispatcher, true);
             match receiver.borrow().get_state() {
                 crate::kleio::display::KEventReceiverControlState::Running => {},
                 crate::kleio::display::KEventReceiverControlState::NextStep => break,

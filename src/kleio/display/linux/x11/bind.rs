@@ -76,4 +76,47 @@ extern {
     /// <https://tronche.com/gui/x/xlib/event-handling/manipulating-event-queue/XNextEvent.html>
     pub fn XNextEvent(display : *mut Display, event_return : *mut XEvent);
 
+    /// Move the pointer to an arbitrary point in a window.
+    /// 
+    /// Reference(s)
+    /// Moving the Pointer : <https://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html>
+    pub fn XWarpPointer(display : *mut Display, src_w : *mut Window, dest_w : *mut Window, 
+        src_x : c_int, src_y : c_int, src_width : c_uint, src_height : c_uint, dest_x : c_int,  dest_y : c_int);
+
+    
+    /// Confine pointer to X11 window.
+    /// 
+    /// XGrabPointer can generate BadCursor, BadValue, and BadWindow errors.
+    /// 
+    /// For cursor, use constant None for default system cursor.
+    /// For time, use constant CurrentTime.
+    /// 
+    /// Reference(s)
+    /// <https://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html#XGrabPointer>
+    pub fn XGrabPointer(display : *mut Display, grab_window : *mut Window, owner_events : bool, 
+        event_mask : c_uint, intpointer_mode : c_uint, keyboard_mode : c_uint, confine_to : *mut Window, cursor : c_ulong, time : c_long) -> c_int;
+
+    /// The XUngrabPointer function releases the pointer and any queued events if this client has actively grabbed the pointer from XGrabPointer.
+    /// 
+    /// Reference(s)
+    /// <https://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html#XUngrabPointer>
+    pub fn XUngrabPointer(display : *mut Display, time : c_long);
+
+    
+}
+
+// XFixes bindings.
+#[link(name = "Xfixes")]
+extern {
+    /// Hide the KWindow cursor.
+    /// 
+    /// Reference(s)
+    /// <https://www.x.org/releases/current/doc/fixesproto/fixesproto.txt>
+    pub fn XFixesHideCursor(display : *mut Display, window : *mut Window);
+
+    /// Show the KWindow cursor.
+    /// 
+    /// Reference(s)
+    /// <https://www.x.org/releases/current/doc/fixesproto/fixesproto.txt>
+    pub fn XFixesShowCursor(display : *mut Display, window : *mut Window);
 }

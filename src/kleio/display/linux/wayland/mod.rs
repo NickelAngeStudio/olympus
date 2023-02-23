@@ -1,8 +1,11 @@
-use crate::kleio::display::{event::KEvent, KWindowError};
+use std::panic::catch_unwind;
 
-use self::bind::{wl_display_connect, wl_display, wl_display_disconnect};
+use crate::kleio::display::{KWindow, event::KEvent};
 
-use super::LinuxDisplayServerProvider;
+use self::bind::{wl_display_connect, wl_display_disconnect};
+
+use super::server::{Display, Window};
+
 
 
 /// Waylind C function binds
@@ -14,6 +17,100 @@ pub mod bind;
 /// Contains Wayland screen fetch function
 pub mod screen;
 
+/// Implementation of privates elements relatives to Wayland display server
+#[doc(hidden)]
+impl KWindow {
+
+    // Get cursor position
+    #[inline(always)]
+    pub(super) fn wayland_get_cursor_position(&self) -> (i32, i32){
+        todo!()
+    }
+
+
+    // Pop an event from the queue
+    #[inline(always)]
+    pub(super) fn wayland_poll_event(&mut self) -> KEvent {
+        todo!()
+    }
+
+    // Sync an event from the queue
+    #[inline(always)]
+    pub(super) fn wayland_sync_events(&self) {
+        todo!()
+    }
+
+    /// Get the count of events that need handling.
+    #[inline(always)]
+    pub(super) fn wayland_get_event_count(&self) -> usize {
+        todo!()
+    }
+
+    /// Set the cursor position
+    #[inline(always)]
+    pub(super) fn wayland_set_cursor_position(&mut self, position : (i32, i32)){
+        todo!()
+    }
+
+    /// Confine cursor to window, preventing it from exiting boundaries.
+    #[inline(always)]
+    pub fn wayland_confine_cursor(&mut self) {
+        todo!()
+    }
+
+    /// Release cursor from window, allowing it to exit boundaries.
+    #[inline(always)]
+    pub fn wayland_release_cursor(&mut self) {
+        todo!()
+    }
+
+    /// Hide system default cursor.
+    #[inline(always)]
+    pub fn wayland_hide_cursor(&mut self) {
+        todo!()
+    }
+
+    /// Show system default cursor.
+    #[inline(always)]
+    pub fn wayland_show_cursor(&mut self) {
+        todo!()
+    }
+  
+    /// Get if Wayland is supported.
+    #[inline(always)]
+    pub(crate) fn wayland_supported() -> bool {
+        unsafe {
+            // Try to call C function with error handling.
+            let result = catch_unwind(|| {
+                wl_display_connect(std::ptr::null())
+            }); 
+            match result {
+                Ok(display) => {
+                    if display == std::ptr::null_mut() {
+                        false
+                    } else {
+                        // Disconnect display before returning true
+                        wl_display_disconnect(display);
+
+                        true
+                    }
+
+                },
+                // C function crashed. Wayland not supported.
+                Err(_) => false,
+            }
+        }
+    }
+
+    /// Create connection to Wayland and window
+    #[inline(always)]
+    pub(crate) fn create_wayland_window(width:u32, height:u32) -> (*mut Display, *mut Window) {
+        todo!()
+    }
+}
+
+
+/*
 pub struct WaylandDisplayServer {
 
 }
@@ -33,7 +130,7 @@ impl super::KLinuxDisplayServer for WaylandDisplayServer{
         todo!()
     }
 
-    fn get_provider(&self) -> super::LinuxDisplayServerProvider {
+    fn get_display_server_provider(&self) -> super::LinuxDisplayServerProvider {
         LinuxDisplayServerProvider::Wayland
     }
 
@@ -44,8 +141,26 @@ impl super::KLinuxDisplayServer for WaylandDisplayServer{
     fn sync_events(&self) {
         todo!()
     }
+
+    fn get_display_server_connection(&self) -> *const super::Display {
+        todo!()
+    }
+
+    fn get_display_server_window(&self) -> *const super::Window {
+        todo!()
+    }
+
+    fn set_cursor_position(&mut self, position : (i32, i32), size : (u32, u32)) {
+        todo!()
+    }
+
+    fn get_cursor_position(&self) -> (i32, i32) {
+        todo!()
+    }
+
+
 }
-/*
+
 /// # Wayland KWindow backend
 pub struct KWindowManagerWayland {
 

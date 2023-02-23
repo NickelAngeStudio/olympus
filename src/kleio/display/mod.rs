@@ -2,7 +2,12 @@
 #[doc(inline)]
 pub use window::KWindow as KWindow;
 pub use window::KWindowError as KWindowError;
-pub use window::KWindowMotionMode as KWindowMotionMode;
+pub use cursor::KCursorMode as KCursorMode;
+pub use cursor::KCursor as KCursor;
+
+/// Cursor properties.
+#[doc(hidden)]
+pub mod cursor;
 
 /// [KWindow] definition.
 #[doc(hidden)]
