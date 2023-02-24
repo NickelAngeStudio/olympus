@@ -1,5 +1,7 @@
+use std::os::raw::{ c_int, c_long, c_uint, c_ulong, c_char, c_uchar, c_short, c_void };
+use std::ptr::null_mut;
 use std::{panic::catch_unwind};
-use std::os::raw::{ c_int };
+use crate::kleio::display::linux::x11::bind::XGetAtomName;
 use crate::kleio::display::{KWindow, KCursorMode};
 use crate::kleio::display::event::KEventWindow;
 use crate::kleio::display::linux::x11::constant::GrabModeAsync;
@@ -11,8 +13,9 @@ use crate::kleio::display::{linux::x11::{bind::{XDefaultRootWindow, XCreateSimpl
     GravityNotify, ResizeRequest, CirculateNotify, CirculateRequest, PropertyNotify, SelectionClear, SelectionRequest, SelectionNotify, 
     ColormapNotify, ClientMessage, MappingNotify, GenericEvent}}, event::KEvent, self, event::KEventMouse, event::KEventKeyboard};
 
-use self::bind::{XWarpPointer, XFixesHideCursor, XGrabPointer, XFixesShowCursor, XUngrabPointer};
+use self::bind::{XWarpPointer, XFixesHideCursor, XGrabPointer, XFixesShowCursor, XUngrabPointer, XGetWindowProperty};
 use self::constant::CurrentTime;
+use self::event::Atom;
 use self::{event::{ XEvent }, bind::{XOpenDisplay, XCloseDisplay, XNextEvent}, constant::{KeyReleaseMask, ButtonReleaseMask, LeaveWindowMask, EnterWindowMask, Button1MotionMask, PointerMotionMask, Button3MotionMask, Button2MotionMask, Button5MotionMask, Button4MotionMask, ButtonMotionMask, StructureNotifyMask, ResizeRedirectMask, VisibilityChangeMask, FocusChangeMask, PropertyChangeMask}};
 
 use super::server::{ Display, Window };
@@ -67,7 +70,7 @@ impl KWindow {
     pub(super) fn x11_set_cursor_position(&mut self, position : (i32, i32)){
         unsafe {
             XWarpPointer(self.display_server.display, self.display_server.window, self.display_server.window, 0, 0, 
-                self.size.0, self.size.1, position.0,  position.1);
+                self.property.size.0, self.property.size.1, position.0,  position.1);
         }
     }
 
@@ -154,7 +157,7 @@ impl KWindow {
                                 Button2MotionMask | Button3MotionMask |
                                 Button4MotionMask | Button5MotionMask |
                                 ButtonMotionMask |                          // Mouse motion??? TBD
-                                StructureNotifyMask | ResizeRedirectMask |
+                                StructureNotifyMask | // ResizeRedirectMask |
                                 VisibilityChangeMask | FocusChangeMask |
                                 PropertyChangeMask | ExposureMask;                        // Window event I guess??
 
@@ -173,26 +176,42 @@ impl KWindow {
     pub(super) fn x11_poll_event(&mut self) -> KEvent {
         unsafe {
 
-            XNextEvent(self.display_server.display, &mut self.display_server.x_event);
-            let xevent = self.display_server.x_event; 
+            XNextEvent(self.display_server.display, &mut self.display_server.x11_property.x_event);
+            let xevent = self.display_server.x11_property.x_event; 
             
             match xevent._type {
-                KeyPress => { println!("KWindow({:p}), KeyPress({})", self, xevent._type); 
-                    KEvent::Keyboard(KEventKeyboard::KeyDown(xevent._xkey._keycode)) },
-                KeyRelease=> { println!("KWindow({:p}), KeyRelease({})", self, xevent._type); KEvent::Unknown },
+
+                // Keyboard key pressed
+                KeyPress => KEvent::Keyboard(KEventKeyboard::KeyDown(xevent._xkey._keycode)),
+
+                // Keyboard key release
+                KeyRelease=> KEvent::Keyboard(KEventKeyboard::KeyUp(xevent._xkey._keycode)),
+
+
                 ButtonPress=> { println!("KWindow({:p}), ButtonPress({})", self, xevent._type); KEvent::Unknown },
                 ButtonRelease=> { println!("KWindow({:p}), ButtonRelease({})", self, xevent._type); KEvent::Unknown },
-                MotionNotify=> {
-                    match self.cursor.mode {
+
+                // Cursor moved
+                MotionNotify=> {    
+                    match self.property.cursor.mode {   
                         KCursorMode::Pointer => KEvent::Mouse(KEventMouse::Moved((xevent._xmotion._x, xevent._xmotion._y))),
-                        KCursorMode::Acceleration => KEvent::Mouse(KEventMouse::Moved((xevent._xmotion._x - self.center.0, 
-                            xevent._xmotion._y - self.center.1))),
+                        KCursorMode::Acceleration => KEvent::Mouse(KEventMouse::Moved((xevent._xmotion._x - self.property.center.0, 
+                            xevent._xmotion._y - self.property.center.1))),
                     }
                 },
-                EnterNotify=> { println!("KWindow({:p}), EnterNotify({})", self, xevent._type); KEvent::Unknown },
-                LeaveNotify=> { println!("KWindow({:p}), LeaveNotify({})", self, xevent._type); KEvent::Unknown },
+
+                // Cursor entered window
+                EnterNotify=> KEvent::Window(KEventWindow::CursorEnter()),
+
+                // Cursor left window
+                LeaveNotify=> KEvent::Window(KEventWindow::CursorLeave()),
+
+                // Window got focus
                 FocusIn=> KEvent::Window(KEventWindow::Focus()),
+
+                // Window lost focus
                 FocusOut=> KEvent::Window(KEventWindow::Blur()),
+
                 KeymapNotify=> { println!("KWindow({:p}), KeymapNotify({})", self, xevent._type); KEvent::Unknown },
                 Expose=> { println!("KWindow({:p}), Expose({})", self, xevent._type); KEvent::Unknown },
                 GraphicsExpose=> { println!("KWindow({:p}), GraphicsExpose({})", self, xevent._type); KEvent::Unknown },
@@ -204,13 +223,63 @@ impl KWindow {
                 MapNotify=> { println!("KWindow({:p}), MapNotify({})", self, xevent._type); KEvent::Unknown },
                 MapRequest=> { println!("KWindow({:p}), MapRequest({})", self, xevent._type); KEvent::Unknown },
                 ReparentNotify=> { println!("KWindow({:p}), ReparentNotify({})", self, xevent._type); KEvent::Unknown },
-                ConfigureNotify=> { println!("KWindow({:p}), ConfigureNotify({})", self, xevent._type); KEvent::Unknown },
+
+                // Window position and/or size changed
+                ConfigureNotify=> { 
+                    let position = (xevent._xconfigure._x, xevent._xconfigure._y);
+                    let size = (xevent._xconfigure._width as u32, xevent._xconfigure._height as u32);
+
+                    if position != self.property.position && size != self.property.size {
+                        KEvent::Window(KEventWindow::MovedResized(position, size))
+                    } else if position != self.property.position {
+                        KEvent::Window(KEventWindow::Moved(position))
+                    } else if size != self.property.size  {
+                        KEvent::Window(KEventWindow::Resized(size))
+                    } else {
+                        KEvent::Unknown
+                    }
+                },
+
                 ConfigureRequest=> { println!("KWindow({:p}), ConfigureRequest({})", self, xevent._type); KEvent::Unknown },
                 GravityNotify=> { println!("KWindow({:p}), GravityNotify({})", self, xevent._type); KEvent::Unknown },
-                ResizeRequest=> { println!("KWindow({:p}), ResizeRequest({})", self, xevent._type); KEvent::Unknown },
+                //ResizeRequest=> { 
+                //    println!("KWindow({:p}), ResizeRequest({})", self, xevent._type); 
+                //    KEvent::Window(KEventWindow::Resized((xevent._xresizerequest._width.try_into().unwrap(), xevent._xresizerequest._width.try_into().unwrap())))
+                //},
                 CirculateNotify=> { println!("KWindow({:p}), CirculateNotify({})", self, xevent._type); KEvent::Unknown },
                 CirculateRequest=> { println!("KWindow({:p}), CirculateRequest({})", self, xevent._type); KEvent::Unknown },
-                PropertyNotify=> { println!("KWindow({:p}), PropertyNotify({})", self, xevent._type); KEvent::Unknown },
+                PropertyNotify=> { 
+                    // Window state changed
+                    if xevent._xproperty._atom == self.display_server.x11_property.wm_state {
+                        let property : Atom = self.display_server.x11_property.wm_state; 
+                        let long_offset : c_long = 0; 
+                        let long_length : c_long = 1024; 
+                        let delete : bool = false; 
+                        let req_type : Atom = self.display_server.x11_property.xa_atom; 
+                        let mut actual_type_return : Atom = 0;
+                        let mut actual_format_return : c_int = 0; 
+                        let mut nitems_return : c_ulong = 0; 
+                        let mut bytes_after_return : c_ulong = 0; 
+                        let mut prop_return : *mut c_char = null_mut();
+
+                        let res = XGetWindowProperty(self.display_server.display, self.display_server.window, property, 
+                            long_offset, long_length, delete, req_type, &mut actual_type_return, &mut actual_format_return, 
+                            &mut nitems_return, &mut bytes_after_return, &mut prop_return);
+                            
+                        println!("WMSTATE RES={}, actual_type_return={}, actual_format_return={}, nitems_return={}, bytes_after_return={}, prop_return={:?}", 
+                            res, actual_type_return, actual_format_return, nitems_return, bytes_after_return, prop_return);
+
+                        // TODO:Call XFREE
+                        //XFree(atoms);
+                    }
+
+                    //let a = CStr::from_ptr(XGetAtomName(self.display_server.display ,xevent._xproperty._atom));
+                    //println!("Atom {}={:?}", xevent._xproperty._atom, a);
+
+                    //println!("_xproperty = {:?}", xevent._xproperty);
+                    //println!("KWindow({:p}), PropertyNotify({}, atom={})", self, xevent._type, xevent._xproperty._atom); 
+                    KEvent::Unknown 
+                },
                 SelectionClear=> { println!("KWindow({:p}), SelectionClear({})", self, xevent._type); KEvent::Unknown },
                 SelectionRequest=> { println!("KWindow({:p}), SelectionRequest({})", self, xevent._type); KEvent::Unknown },
                 SelectionNotify=> { println!("KWindow({:p}), SelectionNotify({})", self, xevent._type); KEvent::Unknown },

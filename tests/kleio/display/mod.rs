@@ -68,7 +68,7 @@ macro_rules! kwindow_x11_step_loop {
 
     // With message
     ($message:expr, $kwindow:ident, $dispatcher:ident, $receiver:ident) => {{
-        print!("{}[2J", 27 as char);
+        //print!("{}[2J", 27 as char);
         println!("\x1b[93m{}\x1b[0m", $message);
 
         loop {

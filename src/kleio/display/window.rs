@@ -1,5 +1,7 @@
-use super::{event::{ KEvent, KEventDispatcher}, screen::KScreenList};
-use super::{ KCursorMode, KCursor };
+use crate::kleio::display::event::{KEventWindow, KEventKeyboard, KEventController};
+
+use super::{event::{ KEvent, KEventDispatcher}, screen::KScreenList, KWindowProperty};
+use super::{ KCursorMode, KCursorProperty };
 
 #[allow(unused_imports)]
 use super::event::{ KEventMouse, KEventReceiver };
@@ -46,15 +48,8 @@ pub struct KWindow {
     /// Hardware screen list
     pub(super) screen_list : KScreenList,
 
-    #[cfg(any(doc, any(target_os = "linux", target_os = "windows", target_os = "macos")))]
-    /// Cursor mode and properties
-    pub(super) cursor : KCursor,
-
-    /// Size of window as pair of u32 (width, height).
-    pub(super) size : (u32, u32),
-
-    /// Window center,
-    pub(super) center : (i32, i32),
+    /// KWindow properties
+    pub(super) property : KWindowProperty,
 
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
     /// Linux display server details (Linux only).
@@ -165,9 +160,9 @@ impl KWindow {
     /// Confine cursor to window, preventing it from exiting boundaries.
     pub fn confine_cursor(&mut self) {
         // Confined only if released.
-        if !self.cursor.confined {
+        if !self.property.cursor.confined {
             self.__confine_cursor();
-            self.cursor.confined = true;
+            self.property.cursor.confined = true;
         }
     }
 
@@ -175,7 +170,7 @@ impl KWindow {
      #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
      pub fn get_cursor_position(&self) -> (i32, i32) {
          #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-         self.cursor.position
+         self.property.cursor.position
      }
 
     /// Get the display server provider identification.
@@ -208,7 +203,7 @@ impl KWindow {
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
     pub fn get_cursor_mode(&self) -> KCursorMode{
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-        self.cursor.mode
+        self.property.cursor.mode
     }
 
      /// Returns position (x,y) of the [KWindow].
@@ -222,7 +217,7 @@ impl KWindow {
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
     pub fn get_size(&self) -> (u32, u32) {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-        self.size
+        self.property.size
     }
 
     /// Returns list of connected screens with details.
@@ -238,9 +233,9 @@ impl KWindow {
     /// Hide system default cursor.
     pub fn hide_cursor(&mut self) {
         // Hide only if visible.
-        if self.cursor.visible {
+        if self.property.cursor.visible {
             self.__hide_cursor();
-            self.cursor.visible = false;
+            self.property.cursor.visible = false;
         }
     }
 
@@ -250,14 +245,14 @@ impl KWindow {
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
     pub fn is_cursor_confined(&self) -> bool {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-        self.cursor.confined
+        self.property.cursor.confined
     }
 
     /// Get if the default operating system cursor is visible.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
     pub fn is_cursor_visible(&self) -> bool {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-        self.cursor.visible
+        self.property.cursor.visible
     }
 
     /// Returns if the [KWindow] is fullscreen or not.
@@ -287,9 +282,9 @@ impl KWindow {
     /// Cursor will ALWAYS be released if the window loses focus.
     pub fn release_cursor(&mut self) {
         // Release only if confined.
-        if self.cursor.confined {
+        if self.property.cursor.confined {
             self.__release_cursor();
-            self.cursor.confined = false;
+            self.property.cursor.confined = false;
         }
     }
 
@@ -308,9 +303,9 @@ impl KWindow {
     /// Show system default cursor.
     pub fn show_cursor(&mut self) {
         // Show only if not visible.
-        if !self.cursor.visible {
+        if !self.property.cursor.visible {
             self.__show_cursor();
-            self.cursor.visible = true;
+            self.property.cursor.visible = true;
         }
     }
 
@@ -367,12 +362,12 @@ impl KWindow {
     pub fn set_cursor_mode(&mut self, mode : KCursorMode) {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
 
-        if mode != self.cursor.mode {
-            self.cursor.mode = mode;
-            match self.cursor.mode {
+        if mode != self.property.cursor.mode {
+            self.property.cursor.mode = mode;
+            match self.property.cursor.mode {
                 KCursorMode::Pointer => {},
                 // Put cursor in center if acceleration
-                KCursorMode::Acceleration => self.set_cursor_position(self.center),
+                KCursorMode::Acceleration => self.set_cursor_position(self.property.center),
             }
         }
     }
@@ -409,56 +404,114 @@ impl KWindow {
 
         match event {
             KEvent::None => false,
-            KEvent::Window(_) => false,
-            KEvent::Keyboard(_) => false,
-            KEvent::Mouse(event) => match event {
-                KEventMouse::Moved(position) => {
-                    match self.cursor.mode {
-                        KCursorMode::Pointer => {
-                            // Register cursor position.
-                            self.cursor.position = *position;
-                            false
-                        },
-                        KCursorMode::Acceleration => {
-                            if *position == (0,0) {     // Ignore position reset
-                                true
-                            } else { // Reset cursor position
-                                self.set_cursor_position(self.center);
-                                false
-                            }
-                        },
-                    }
-                },
-                _ => false,
-            },
-            KEvent::Controller(_) => false,
+            KEvent::Window(event) => self.handle_kwindow_window_event(event),
+            KEvent::Keyboard(event) => self.handle_kwindow_keyboard_event(event),
+            KEvent::Mouse(event) => self.handle_kwindow_mouse_event(event),
+            KEvent::Controller(event) => self.handle_kwindow_controller_event(event),
             KEvent::Unknown => false,
         }
-        
-        // Set cursor to center if Acceleration
-        
-        /*
-        match self.mouse_mode {
-            KWindowMouseMode::Pointer(_,_) => false,
-            KWindowMouseMode::Acceleration => match event {
-                KEvent::Mouse(event) => match event {
-                    // Ignore moved if motion = accel && moved == center
-                    KEventMouse::Moved(position) => if *position == (0,0) {
+    }
+
+    /// Handle KEventWindow for KWindow.
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
+    #[inline(always)]
+    fn handle_kwindow_window_event(&mut self, event : &KEventWindow) -> bool {
+        match event {
+            super::event::KEventWindow::Shown() => false,
+            super::event::KEventWindow::Hidden() => false,
+            super::event::KEventWindow::Exposed() => false,
+            super::event::KEventWindow::Moved(position) => {
+                self.property.position = *position;
+                false
+            },
+            super::event::KEventWindow::Resized(size) => {
+                self.property.size = *size;
+                self.property.center = (self.property.size.0 as i32 / 2, self.property.size.1 as i32 / 2);
+                false
+            },
+            super::event::KEventWindow::MovedResized(position, size) => {
+                self.property.position = *position;
+                self.property.size = *size;
+                self.property.center = (self.property.size.0 as i32 / 2, self.property.size.1 as i32 / 2);
+                false
+            },
+            super::event::KEventWindow::Minimized() => false,
+            super::event::KEventWindow::Maximized() => false,
+            super::event::KEventWindow::Restored() => false,
+            super::event::KEventWindow::CursorEnter() => {
+                // Hide cursor if supposed to be hidden.
+                if !self.property.cursor.visible {
+                    self.__hide_cursor();
+                }
+                false
+            },
+            super::event::KEventWindow::CursorLeave() => {
+                // Show hidden cursor when out of window.
+                if !self.property.cursor.visible {
+                    self.__show_cursor();
+                }
+                false
+            },
+            super::event::KEventWindow::Focus() => {
+                // If cursor is confined, confine cursor on focus.
+                if self.property.cursor.confined {
+                    self.__confine_cursor();
+                }
+                false
+            },
+            super::event::KEventWindow::Blur() => {
+                // If cursor is confined, release cursor on blur.
+                if self.property.cursor.confined {
+                    self.__release_cursor();
+                }
+                false
+            },
+            super::event::KEventWindow::Close() => false,
+        }
+    }
+
+    /// Handle KEventKeyboard for KWindow.
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
+    #[inline(always)]
+    fn handle_kwindow_keyboard_event(&mut self, event : &KEventKeyboard) -> bool {
+        match event {
+            KEventKeyboard::KeyDown(keycode) => println!("\x1b[92mKEventKeyboard::KeyDown({})\x1b[0m", keycode),
+            KEventKeyboard::KeyUp(keycode) => println!("\x1b[92mKEventKeyboard::KeyUp({})\x1b[0m", keycode),
+        }
+        false
+    }
+
+    /// Handle KEventMouse for KWindow.
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
+    #[inline(always)]
+    fn handle_kwindow_mouse_event(&mut self, event : &KEventMouse) -> bool {
+        match event {
+            KEventMouse::Moved(position) => match self.property.cursor.mode {
+                KCursorMode::Pointer => {
+                    // Register cursor position.
+                    self.property.cursor.position = *position;
+                    false
+                },
+                KCursorMode::Acceleration => {
+                    if *position == (0,0) {     // Ignore position reset
                         true
                     } else { // Reset cursor position
-                        self.set_cursor_position(self.center);
+                        self.property.cursor.position = self.property.center;
+                        self.set_cursor_position(self.property.center);
                         false
-                    },
-                    _ => false,
-                },
-                _ => false,
+                    }
+                }
             },
+            _ => false,
         }
-        */
-        
-        
-        
-        
-
+    }
+    
+    /// Handle KWindowController for KWindow.
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
+    #[inline(always)]
+    fn handle_kwindow_controller_event(&mut self, event : &KEventController) -> bool {
+        match event {
+            _=> false,
+        }
     }
 }

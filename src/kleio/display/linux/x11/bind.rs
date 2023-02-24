@@ -2,7 +2,7 @@
 use std::os::raw::{c_char, c_int, c_long, c_uint, c_ulong};
 
 use super::{ Display, Window };
-use super::event::{ XEvent};
+use super::event::{ XEvent, Atom};
 
 
 #[link(name = "X11")]
@@ -102,7 +102,27 @@ extern {
     /// <https://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html#XUngrabPointer>
     pub fn XUngrabPointer(display : *mut Display, time : c_long);
 
-    
+    /// The XInternAtom function returns the atom identifier associated with the specified atom_name string
+    /// 
+    /// Reference(s)
+    /// <https://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html#XInternAtom>
+    pub fn XInternAtom(display : *mut Display, atom_name : *const c_char, only_if_exists : bool) -> Atom;
+
+    /// The XGetAtomName function returns the name associated with the specified atom.
+    /// 
+    /// Reference(s)
+    /// <https://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html#XGetAtomName>
+   pub fn XGetAtomName(display : *mut Display, atom : Atom) ->  *const c_char;
+
+   /// The XGetWindowProperty function returns the actual type of the property; the actual format of the property; 
+   /// the number of 8-bit, 16-bit, or 32-bit items transferred; the number of bytes remaining to be read in the property; 
+   /// and a pointer to the data actually returned.
+   /// 
+   /// Reference(s)
+   /// <https://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html#XGetWindowProperty>
+   pub fn XGetWindowProperty(display : *mut Display, w : *mut Window, property : Atom, long_offset : c_long, long_length : c_long, 
+    delete : bool, req_type : Atom, actual_type_return : *mut Atom, actual_format_return : *mut c_int, nitems_return : *mut c_ulong, 
+    bytes_after_return : *mut c_ulong, prop_return : *mut *mut c_char) -> c_int;
 }
 
 // XFixes bindings.

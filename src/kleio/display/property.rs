@@ -1,3 +1,20 @@
+/// [KWindow] properties.
+#[cfg(any(doc, any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+#[cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
+pub struct KWindowProperty {
+    /// Cursor mode and properties
+    pub(super) cursor : KCursorProperty,
+
+    /// Position of window as pair of i32(x,y)
+    pub(super) position : (i32, i32),
+
+    /// Size of window as pair of u32 (width, height).
+    pub(super) size : (u32, u32),
+
+    /// Window center,
+    pub(super) center : (i32, i32),
+}
+
 /// Enumeration of possible [KWindow] cursor mode used for [KEvent].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum KCursorMode {
@@ -13,7 +30,7 @@ pub enum KCursorMode {
 }
 
 /// [KWindow] cursor properties.
-pub struct KCursor {
+pub struct KCursorProperty {
     /// Motion mode of the mouse
     pub(super) mode : KCursorMode,
 
@@ -25,4 +42,7 @@ pub struct KCursor {
 
     /// Is cursor confined?
     pub(super) confined : bool, 
+
+    // Is cursor currently inside window?
+    //pub(super) is_inside_window : bool,
 }

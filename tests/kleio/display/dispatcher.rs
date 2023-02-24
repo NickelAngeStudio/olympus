@@ -230,12 +230,12 @@ impl KEventDispatcherControl {
         events.push(KEvent::Window(KEventWindow::Exposed()));
         events.push(KEvent::Window(KEventWindow::Moved((10,10))));
         events.push(KEvent::Window(KEventWindow::Resized((100,100))));
-        events.push(KEvent::Window(KEventWindow::SizeChanged((100,100))));
+        events.push(KEvent::Window(KEventWindow::MovedResized((10,10),(100,100))));
         events.push(KEvent::Window(KEventWindow::Minimized()));
         events.push(KEvent::Window(KEventWindow::Maximized()));
         events.push(KEvent::Window(KEventWindow::Restored()));
-        events.push(KEvent::Window(KEventWindow::MouseEnter()));
-        events.push(KEvent::Window(KEventWindow::MouseLeave()));
+        events.push(KEvent::Window(KEventWindow::CursorEnter()));
+        events.push(KEvent::Window(KEventWindow::CursorLeave()));
         events.push(KEvent::Window(KEventWindow::Focus()));
         events.push(KEvent::Window(KEventWindow::Blur()));
         events.push(KEvent::Window(KEventWindow::Close()));

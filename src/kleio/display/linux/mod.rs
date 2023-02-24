@@ -1,4 +1,4 @@
-use super::{ KWindowError, event::KEvent, KWindow, screen::KScreenList, KCursor };
+use super::{ KWindowError, event::KEvent, KWindow, screen::KScreenList, KCursorProperty, KWindowProperty };
 use server::KLinuxDisplayServerProvider;
 
 /// Wayland KWindowManager
@@ -40,7 +40,7 @@ impl KWindow {
     /// Create new KWindow
     pub(super) fn __new(width:u32, height:u32, provider : super::linux::server::KLinuxDisplayServerProvider) -> Result<KWindow, KWindowError> {
         // Default cursor.
-        let cursor = KCursor { mode: super::KCursorMode::Pointer, position: (0,0), visible: true, confined: false };
+        let cursor = KCursorProperty { mode: super::KCursorMode::Pointer, position: (0,0), visible: true, confined: false };
         
         // Default center position
         let center = ((width as i32 / 2), (height as i32 / 2));
@@ -49,7 +49,8 @@ impl KWindow {
             Ok(display_server) => {
                 match KScreenList::new(display_server.provider){
                     Ok(screen_list) => {
-                        let mut kwindow = KWindow { screen_list, cursor, size : (width, height), center, display_server };
+                        let property = KWindowProperty { cursor, position: (0,0), size: (width, height), center };
+                        let mut kwindow = KWindow { screen_list, property, display_server };
                         Ok(kwindow)
                     },
                     Err(_) => Err(KWindowError::ScreenDetailError),
