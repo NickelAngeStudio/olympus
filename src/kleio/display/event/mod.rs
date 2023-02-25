@@ -4,7 +4,6 @@ pub use mouse::KEventMouse as KEventMouse;
 pub use window::KEventWindow as KEventWindow;
 pub use controller::KEventController as KEventController;
 pub use keyboard::KEventKeyboard as KEventKeyboard;
-pub use dispatcher::KEventDispatcherError as KEventDispatcherError;
 pub use dispatcher::KEventDispatcher as KEventDispatcher;
 pub use dispatcher::KEventReceiver as KEventReceiver;
 

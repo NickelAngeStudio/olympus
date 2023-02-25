@@ -1,5 +1,7 @@
 use std::{io::{Read, ErrorKind}, path::PathBuf};
 
+use crate::error::{KAssetBrokerError, OlympusError};
+
 use super::KAssetSource;
 
 /// Middle men between [`0..n`] [KAssetSource] to supply assets according to source priority.
@@ -52,19 +54,7 @@ pub struct KAssetBroker<'a> {
     sources: Vec<&'a dyn KAssetSource>,
 }
 
-/// Enumeration of possible errors that can happens within [KAssetBroker].
-pub enum KAssetBrokerError {
-    
-    /// Happens when a [KAssetSource] is not found within the broker.
-    SourceNotFound,
 
-    /// Happens when adding the same [KAssetSource] twice to the broker.
-    SourceAlreadyExists,
-    
-    /// Happens when new priority set for [KAssetSource] is higher then the length of sources.
-    PriorityOutOfBound,
-
-}
 
 
 impl<'a> KAssetBroker<'a> {
@@ -82,8 +72,8 @@ impl<'a> KAssetBroker<'a> {
     /// 
     /// Returns [`Ok<usize>`][Ok<usize>] with the priority of source added if successful.
     /// # Error(s)
-    /// Returns `Err(`[KAssetBrokerError::SourceAlreadyExists]`)`  if [KAssetSource] is already within the broker.
-    pub fn add_source(&mut self, source : &'a dyn KAssetSource) -> Result<usize, KAssetBrokerError>{
+    /// Returns `Err(`[OlympusError::KAssetBroker(KAssetBrokerError::SourceAlreadyExists)]`)`  if [KAssetSource] is already within the broker.
+    pub fn add_source(&mut self, source : &'a dyn KAssetSource) -> Result<usize, OlympusError>{
 
         if self.has_source(source) == false {
             let priority = self.sources.len();
@@ -92,7 +82,7 @@ impl<'a> KAssetBroker<'a> {
 
             Ok(priority)
         } else {
-            Err(KAssetBrokerError::SourceAlreadyExists)
+            Err(OlympusError::KAssetBroker(KAssetBrokerError::SourceAlreadyExists))
         }
     }
 
@@ -101,8 +91,8 @@ impl<'a> KAssetBroker<'a> {
     /// Returns [`Ok<usize>`][Ok<usize>] with the priority of [KAssetSource] removed if successful.
     /// 
     /// # Error(s)
-    /// Returns `Err(`[KAssetBrokerError::SourceNotFound]`)` if [KAssetSource] is not found.
-    pub fn remove_source(&mut self, source : &'a dyn KAssetSource) -> Result<usize, KAssetBrokerError>{
+    /// Returns `Err(`[OlympusError::KAssetBroker(KAssetBrokerError::SourceNotFound)]`)` if [KAssetSource] is not found.
+    pub fn remove_source(&mut self, source : &'a dyn KAssetSource) -> Result<usize, OlympusError>{
 
         let priority = self.get_source_priority(source);
 
@@ -111,7 +101,7 @@ impl<'a> KAssetBroker<'a> {
                 self.sources.remove(priority);
                 Ok(priority)
             },
-            Err(_) => Err(KAssetBrokerError::SourceNotFound),
+            Err(_) => Err(OlympusError::KAssetBroker(KAssetBrokerError::SourceNotFound)),
         }
     }
 
@@ -120,10 +110,10 @@ impl<'a> KAssetBroker<'a> {
     /// Returns [`Ok<usize>`][Ok<usize>] with the new priority of [KAssetSource] if successful.
     /// 
     /// # Error(s)
-    /// Returns `Err(`[KAssetBrokerError::PriorityOutOfBound]`)` if the `priority` > broker sources length.
+    /// Returns `Err(`[OlympusError::KAssetBroker(KAssetBrokerError::PriorityOutOfBound)]`)` if the `priority` > broker sources length.
     /// 
-    /// Returns `Err(`[KAssetBrokerError::SourceNotFound]`)` if [KAssetSource] is not found.
-    pub fn set_source_priority(&mut self, source : &'a dyn KAssetSource, priority : usize)-> Result<usize, KAssetBrokerError>{
+    /// Returns `Err(`[OlympusError::KAssetBroker(KAssetBrokerError::SourceNotFound)]`)` if [KAssetSource] is not found.
+    pub fn set_source_priority(&mut self, source : &'a dyn KAssetSource, priority : usize)-> Result<usize, OlympusError>{
 
         // Get current position / priority of the source
         let position = self.get_source_priority(source);
@@ -151,11 +141,11 @@ impl<'a> KAssetBroker<'a> {
                     Ok(priority)
 
                 } else {
-                    Err(KAssetBrokerError::PriorityOutOfBound)
+                    Err(OlympusError::KAssetBroker(KAssetBrokerError::PriorityOutOfBound))
                 }
 
             },
-            Err(_) => Err(KAssetBrokerError::SourceNotFound),
+            Err(_) => Err(OlympusError::KAssetBroker(KAssetBrokerError::SourceNotFound)),
         }
 
     }

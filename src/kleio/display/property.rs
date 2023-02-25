@@ -1,7 +1,14 @@
+#[allow(unused_imports)]
+use super::{ KWindow, event::{ KEvent, KEventMouse }};
+
 /// [KWindow] properties.
 #[cfg(any(doc, any(target_os = "linux", target_os = "windows", target_os = "macos")))]
 #[cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
 pub struct KWindowProperty {
+
+    /// Window title
+    pub(super) title : String,
+
     /// Cursor mode and properties
     pub(super) cursor : KCursorProperty,
 
@@ -13,6 +20,16 @@ pub struct KWindowProperty {
 
     /// Window center,
     pub(super) center : (i32, i32),
+
+    /// Window is minimized
+    pub(super) minimized : bool,
+
+    /// Window is maximized
+    pub(super) maximized : bool,
+
+    /// Window is fullscreen
+    pub(super) fullscreen : bool,
+
 }
 
 /// Enumeration of possible [KWindow] cursor mode used for [KEvent].

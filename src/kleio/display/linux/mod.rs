@@ -1,8 +1,9 @@
-use super::{ KWindowError, event::KEvent, KWindow, screen::KScreenList, KCursorProperty, KWindowProperty };
+use crate::error::{OlympusError, KWindowError};
+
+use super::{ event::KEvent, KWindow, screen::KScreenList, KCursorProperty, KWindowProperty };
 use server::KLinuxDisplayServerProvider;
 
 /// Wayland KWindowManager
-#[cfg(all(not(git_workflow), not(feature="no_wayland")))]     // Add Wayland if not remove via feature.
 pub mod wayland;
 
 /// X11 KWindowManager
@@ -17,18 +18,9 @@ pub mod server;
 #[macro_export]
 macro_rules! wayland_or_x11 {
     ($provider:expr, $if_wayland:block, $else:block) => {
-        // With Wayland support
-        #[cfg(all(not(git_workflow), not(feature="no_wayland")))] 
-        {
-            match $provider {
-                KLinuxDisplayServerProvider::Wayland => $if_wayland,
-                _ => $else,
-            }
-        }
-        // Without Wayland support
-        #[cfg(all(not(git_workflow), feature="no_wayland"))]
-        {
-            $else
+        match $provider {
+            KLinuxDisplayServerProvider::Wayland => $if_wayland,
+            _ => $else,
         }
     }
 }
@@ -38,7 +30,7 @@ macro_rules! wayland_or_x11 {
 #[doc(hidden)]
 impl KWindow {
     /// Create new KWindow
-    pub(super) fn __new(width:u32, height:u32, provider : super::linux::server::KLinuxDisplayServerProvider) -> Result<KWindow, KWindowError> {
+    pub(super) fn __new(width:u32, height:u32, provider : super::linux::server::KLinuxDisplayServerProvider) -> Result<KWindow, OlympusError> {
         // Default cursor.
         let cursor = KCursorProperty { mode: super::KCursorMode::Pointer, position: (0,0), visible: true, confined: false };
         
@@ -49,11 +41,11 @@ impl KWindow {
             Ok(display_server) => {
                 match KScreenList::new(display_server.provider){
                     Ok(screen_list) => {
-                        let property = KWindowProperty { cursor, position: (0,0), size: (width, height), center };
+                        let property = KWindowProperty { title : String::from(""), cursor, position: (0,0), size: (width, height), center, minimized: false, maximized: false, fullscreen: false };
                         let mut kwindow = KWindow { screen_list, property, display_server };
                         Ok(kwindow)
                     },
-                    Err(_) => Err(KWindowError::ScreenDetailError),
+                    Err(_) => Err(OlympusError::KWindow(KWindowError::ScreenDetailError)),
                 }
             },
             Err(err) => Err(err),
@@ -118,7 +110,7 @@ impl KWindow {
 
     /// Hide system default cursor.
     #[inline(always)]
-    pub fn __hide_cursor(&mut self) {
+    pub(super) fn __hide_cursor(&mut self) {
         wayland_or_x11!{self.display_server.provider, { 
             self.wayland_hide_cursor();
             
@@ -130,7 +122,7 @@ impl KWindow {
 
     /// Show system default cursor.
     #[inline(always)]
-    pub fn __show_cursor(&mut self) {
+    pub(super) fn __show_cursor(&mut self) {
         wayland_or_x11!{self.display_server.provider, { 
             self.wayland_show_cursor();
             
@@ -142,7 +134,7 @@ impl KWindow {
 
     /// Confine cursor to window, preventing it from exiting boundaries.
     #[inline(always)]
-    pub fn __confine_cursor(&mut self) {
+    pub(super) fn __confine_cursor(&mut self) {
         wayland_or_x11!{self.display_server.provider, { 
             self.wayland_confine_cursor();
             
@@ -155,7 +147,7 @@ impl KWindow {
 
     /// Release cursor from window, allowing it to exit boundaries.
     #[inline(always)]
-    pub fn __release_cursor(&mut self) {
+    pub(super) fn __release_cursor(&mut self) {
         wayland_or_x11!{self.display_server.provider, { 
             self.wayland_release_cursor();
             
@@ -166,99 +158,65 @@ impl KWindow {
     }
 
 
+    /// Restore the [KWindow], undoing any minimized, maximized and/or fullscreen status.
+    #[inline(always)]
+    pub(super) fn __restore(&mut self) {
+        wayland_or_x11!{self.display_server.provider, { 
+            self.wayland_restore();
+            
+            }, { 
+                self.x11_restore();
+            }
+        }
+    }
+
+    /// Set a new title for the [KWindow].
+    #[inline(always)]
+    pub(super) fn __set_title(&mut self) {
+        wayland_or_x11!{self.display_server.provider, { 
+            self.wayland_set_title();
+            
+            }, { 
+                self.x11_set_title();
+            }
+        }
+    }
+
+    /// Set position of [KWindow] according to position (x,y).
+    #[inline(always)]
+    pub(super) fn __set_position(&mut self){
+        wayland_or_x11!{self.display_server.provider, { 
+            self.wayland_set_position();
+            
+            }, { 
+                self.x11_set_position();
+            }
+        }
+    }
+
+    /// Set dimension of [KWindow] according to size (width, height).
+    #[inline(always)]
+    pub(super) fn __set_size(&mut self) {
+        wayland_or_x11!{self.display_server.provider, { 
+            self.wayland_set_size();
+            
+            }, { 
+                self.x11_set_size();
+            }
+        }
+    }
+
+    /// Set the [KWindow] as fullscreen.
+    #[inline(always)]
+    pub(super) fn __set_fullscreen(&mut self) {
+        wayland_or_x11!{self.display_server.provider, { 
+            self.wayland_set_fullscreen();
+            
+            }, { 
+                self.x11_set_fullscreen();
+            }
+        }
+    }
     
 
 }
-
-
-/*
-/// Abstraction of Linux display server
-pub trait KLinuxDisplayServer  {
-
-    /// Return true if display server is compatible with current linux distro.
-    fn is_compatible() -> bool where Self:Sized;
-
-    /// Pop an event from the queue. 
-    /// 
-    /// Warning(s)
-    /// Will lock until next event if no events.
-    fn pop_event(&mut self) -> KEvent;
-
-    /// Returns count of x11 events.
-    fn get_event_count(&self) -> usize;
-
-    /// Sync all event between client and display server / window manager. 
-    fn sync_events(&self);
-
-    /// Get the display server provider identification.
-    fn get_display_server_provider(&self) -> LinuxDisplayServerProvider;
-
-    /// Get the display server connection.
-    fn get_display_server_connection(&self) -> *const Display;
-    
-    /// Get the display server window handle.
-    fn get_display_server_window(&self) -> *const Window;
-
-    /// Set the cursor position with a pair (x,y).
-    fn set_cursor_position(&mut self, position : (i32, i32), size : (u32, u32));
-
-    /// Get the cursor position with as a pair (x,y).
-    fn get_cursor_position(&self) -> (i32, i32);
-
-}
-
-/// Get the appropriate linux display server. 
-/// 
-/// If provider is set to default, Will try to open Wayland first then X11.
-/// 
-/// Returns Ok(Box<dyn KLinuxDisplayServer>) if successful.
-/// 
-/// # Error(s)
-/// Returns Err([KWindowError::NoDisplayServer]) if no compatible display server found.
-pub fn get_linux_display_server(width:u32, height:u32, provider : LinuxDisplayServerProvider) -> Result<Box<dyn KLinuxDisplayServer>, KWindowError> {
-        
-        use x11::X11DisplayServer;
-        
-
-        #[cfg(all(not(git_workflow), not(feature="no_wayland")))] 
-        {
-            use wayland::WaylandDisplayServer;
-
-            match provider {
-                LinuxDisplayServerProvider::Default => // Try Wayland first then X11
-                    if WaylandDisplayServer::is_compatible() {
-                        Ok(Box::new(WaylandDisplayServer::new(width, height)))
-                    } // Else use X11 display server
-                    else if X11DisplayServer::is_compatible() {
-                        Ok(Box::new(X11DisplayServer::new(width, height)))
-                    } // Return error of NoDisplayServer
-                    else {
-                        Err(KWindowError::NoDisplayServer)
-                    },
-                LinuxDisplayServerProvider::Wayland => // Only try Wayland.
-                    if WaylandDisplayServer::is_compatible() {
-                        Ok(Box::new(WaylandDisplayServer::new(width, height)))
-                    } else {
-                        Err(KWindowError::NoDisplayServer)
-                    },
-                LinuxDisplayServerProvider::X11 =>  // Only try x11.
-                    if X11DisplayServer::is_compatible() {
-                    Ok(Box::new(X11DisplayServer::new(width, height)))
-                    } // Return error of NoDisplayServer
-                    else {
-                        Err(KWindowError::NoDisplayServer)
-                    },
-            }
-        }
-
-        #[cfg(any(feature="git_workflow", feature="no_wayland"))]
-        {
-            if X11DisplayServer::is_compatible() {
-                Ok(Box::new(X11DisplayServer::new(width, height)))
-            } // Return error of NoDisplayServer
-            else {
-                Err(KWindowError::NoDisplayServer)
-            }
-        }
-}
-*/

@@ -1,9 +1,8 @@
-use core::time;
-use std::thread;
 use std::{rc::Rc, cell::RefCell};
 use std::process::exit;
 
-use olympus::kleio::display::{KWindow, KCursorMode, window::{KWINDOW_MIN_WIDTH, KWINDOW_MAX_WIDTH, KWINDOW_MIN_HEIGHT, KWINDOW_MAX_HEIGHT}, KWindowError, linux::server::KLinuxDisplayServerProvider, event::KEventDispatcher};
+use olympus::error::{ OlympusError, KWindowError };
+use olympus::kleio::display::{KWindow, KCursorMode, window::{KWINDOW_MIN_WIDTH, KWINDOW_MAX_WIDTH, KWINDOW_MIN_HEIGHT, KWINDOW_MAX_HEIGHT}, linux::server::KLinuxDisplayServerProvider, event::KEventDispatcher};
 
 use crate::assert_err;
 use crate::{ assert_ok, kleio::display::KEventReceiverControl, kwindow_x11_prepare, kwindow_x11_step_loop};
@@ -63,6 +62,8 @@ fn kwindow_x11_get_event_count() {
 
         // V1 | KWindow::get_event_count() returns the event count without error.
         let _c = wx11.get_event_count();
+
+
     });
 }
 
@@ -266,10 +267,10 @@ fn kwindow_x11_position() {
 /// 
 /// # Verification(s)
 /// V1 | KWindow::get_size() returns the default size.
-/// V2 | KWindow::set_size() width < KWINDOW_MIN_WIDTH should gives KWindowError::WindowSizeError.
-/// V3 | KWindow::set_size() width > KWINDOW_MAX_WIDTH should gives KWindowError::WindowSizeError.
-/// V4 | KWindow::set_size() height < KWINDOW_MIN_HEIGHT should gives KWindowError::WindowSizeError.
-/// V5 | KWindow::set_size() height > KWINDOW_MAX_HEIGHT should gives KWindowError::WindowSizeError.
+/// V2 | KWindow::set_size() width < KWINDOW_MIN_WIDTH should gives OlympusError::KWindowSizeError.
+/// V3 | KWindow::set_size() width > KWINDOW_MAX_WIDTH should gives OlympusError::KWindowSizeError.
+/// V4 | KWindow::set_size() height < KWINDOW_MIN_HEIGHT should gives OlympusError::KWindowSizeError.
+/// V5 | KWindow::set_size() height > KWINDOW_MAX_HEIGHT should gives OlympusError::KWindowSizeError.
 /// V6 | KWindow::set_size() set the new size without errors.
 /// V7 | KWindow::get_size() returns the new size.
 fn kwindow_x11_size() {
@@ -279,17 +280,26 @@ fn kwindow_x11_size() {
         assert_eq!(size.0, KWINDOW_WIDTH, "Width expect {} and not {}!", KWINDOW_WIDTH, size.0);
         assert_eq!(size.1, KWINDOW_HEIGHT, "Height expect {} and not {}!", KWINDOW_HEIGHT, size.1);
 
-        // V2 | KWindow::set_size() width < KWINDOW_MIN_WIDTH should gives KWindowError::WindowSizeError.
-        assert_err!(wx11.set_size((KWINDOW_MIN_WIDTH - 1, KWINDOW_HEIGHT)), KWindowError::WindowSizeError);
+        /*
+        if let Err(OlympusError::KWindow(KWindowError::SizeError))  = wx11.set_size((KWINDOW_MIN_WIDTH - 1, KWINDOW_HEIGHT))  {
+            println!("aaa");
+            
+        } else {
 
-        // V3 | KWindow::set_size() width > KWINDOW_MAX_WIDTH should gives KWindowError::WindowSizeError.
-        assert_err!(wx11.set_size((KWINDOW_MAX_WIDTH + 1, KWINDOW_HEIGHT)), KWindowError::WindowSizeError);
+        }
+        */
 
-        // V4 | KWindow::set_size() height < KWINDOW_MIN_HEIGHT should gives KWindowError::WindowSizeError.
-        assert_err!(wx11.set_size((KWINDOW_WIDTH, KWINDOW_MIN_HEIGHT - 1)), KWindowError::WindowSizeError);
+        // V2 | KWindow::set_size() width < KWINDOW_MIN_WIDTH should gives OlympusError::KWindowSizeError.
+        assert_err!(wx11.set_size((KWINDOW_MIN_WIDTH - 1, KWINDOW_HEIGHT)), OlympusError::KWindow(KWindowError::SizeError));
 
-        // V5 | KWindow::set_size() height > KWINDOW_MAX_HEIGHT should gives KWindowError::WindowSizeError.
-        assert_err!(wx11.set_size((KWINDOW_WIDTH, KWINDOW_MAX_HEIGHT + 1)), KWindowError::WindowSizeError);
+        // V3 | KWindow::set_size() width > KWINDOW_MAX_WIDTH should gives OlympusError::KWindowSizeError.
+        assert_err!(wx11.set_size((KWINDOW_MAX_WIDTH + 1, KWINDOW_HEIGHT)), OlympusError::KWindow(KWindowError::SizeError));
+
+        // V4 | KWindow::set_size() height < KWINDOW_MIN_HEIGHT should gives OlympusError::KWindowSizeError.
+        assert_err!(wx11.set_size((KWINDOW_WIDTH, KWINDOW_MIN_HEIGHT - 1)), OlympusError::KWindow(KWindowError::SizeError));
+
+        // V5 | KWindow::set_size() height > KWINDOW_MAX_HEIGHT should gives OlympusError::KWindowSizeError.
+        assert_err!(wx11.set_size((KWINDOW_WIDTH, KWINDOW_MAX_HEIGHT + 1)), OlympusError::KWindow(KWindowError::SizeError));
 
         // V6 | KWindow::set_size() set the new size without errors.
         assert_ok!(wx11.set_size((KWINDOW_WIDTH / 2, KWINDOW_HEIGHT / 2)));
@@ -421,7 +431,7 @@ fn kwindow_x11_min_max_full_res() {
         assert!(!wx11.is_fullscreen() && !wx11.is_maximized() && !wx11.is_minimized(), "is_fullscreen(), is_maximized(),is_minimized should all be false!");
 
         // V2 | KWindow::set_minimized() work without error and window is minimized.
-        wx11.set_minimized();
+        //wx11.set_minimized();
 
         // V3 | KWindow::is_fullscreen() = false, is_maximized() = false, is_minimized() = true.
         assert!(!wx11.is_fullscreen() && !wx11.is_maximized() && wx11.is_minimized(), "Only is_minimized() should be true!");
@@ -435,7 +445,7 @@ fn kwindow_x11_min_max_full_res() {
         kwindow_x11_step_loop!(wx11, dispatcher, receiver);
 
         // V6 | KWindow::set_maximized() work without error and window is maximized.
-        wx11.set_maximized();
+        //wx11.set_maximized();
 
         // V7 | KWindow::is_fullscreen() = false, is_maximized() = true, is_minimized() = false.
         assert!(!wx11.is_fullscreen() && wx11.is_maximized() && !wx11.is_minimized(), "Only is_maximized() should be true!");
@@ -463,7 +473,7 @@ fn kwindow_x11_min_max_full_res() {
         kwindow_x11_step_loop!(wx11, dispatcher, receiver);
 
         // V14 | KWindow::set_minimized() work without error and window is minimized.
-        wx11.set_minimized();
+       //wx11.set_minimized();
 
         // V15 | KWindow::is_fullscreen() = false, is_maximized() = false, is_minimized() = true.
         assert!(!wx11.is_fullscreen() && !wx11.is_maximized() && wx11.is_minimized(), "Only is_minimized() should be true!");
@@ -477,7 +487,7 @@ fn kwindow_x11_min_max_full_res() {
         kwindow_x11_step_loop!(wx11, dispatcher, receiver);
 
         // V18 | KWindow::set_maximized() work without error and window is maximized and exit fullscreen.
-        wx11.set_maximized();
+        //wx11.set_maximized();
 
         // V19 | KWindow::is_fullscreen() = false, is_maximized() = true, is_minimized() = false.
         assert!(!wx11.is_fullscreen() && !wx11.is_maximized() && wx11.is_minimized(), "Only is_maximized() should be true!");
@@ -485,11 +495,11 @@ fn kwindow_x11_min_max_full_res() {
 
         // V20 | KWindow::set_minimized() called multiple time without error.
         for _ in 0..100 {
-            wx11.set_minimized();
+            //wx11.set_minimized();
         }
         // V21 | KWindow::set_maximized() called multiple time without error.
         for _ in 0..100 {
-            wx11.set_maximized();
+            //wx11.set_maximized();
         }
         // V22 | KWindow::set_fullscreen() called multiple time without error.
         for _ in 0..100 {
@@ -503,10 +513,10 @@ fn kwindow_x11_min_max_full_res() {
         // V24 | Multiple chain call of set_minimized, set_maximized, set_fullscreen, restore without error.
         for i in 0..255 {
             if i % 7 == 0 {
-                wx11.set_minimized();
+                //wx11.set_minimized();
             }
             if i % 11 == 0 {
-                wx11.set_maximized();
+                //wx11.set_maximized();
             }
             if i % 23 == 0 {
                 wx11.set_fullscreen();

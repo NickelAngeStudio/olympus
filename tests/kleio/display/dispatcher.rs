@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use olympus::kleio::display::event::{ KEvent, KEventReceiver, KEventController, KEventKeyboard, KEventMouse, KEventWindow, KEventDispatcher, KEventDispatcherError};
+use olympus::{kleio::display::event::{ KEvent, KEventReceiver, KEventController, KEventKeyboard, KEventMouse, KEventWindow, KEventDispatcher}, error::{OlympusError, KEventDispatcherError }};
 
 use crate::{assert_err, assert_ok};
 
@@ -58,7 +58,7 @@ fn kevent_dispatcher_dispatch_no_receiver() {
 /// 
 /// # Verification(s)
 /// V1 | KEventDispatcher::add_event_receiver() correctly add receiver to KEventDispatcher.
-/// V2 | Adding the same receiver via KEventDispatcher::add_event_receiver() should result in KEventDispatcherError::ReceiverAlreadyExists.
+/// V2 | Adding the same receiver via KEventDispatcher::add_event_receiver() should result in OlympusError::KEventDispatcherReceiverAlreadyExists.
 fn kevent_dispatcher_add_event_receiver() {
 
     let mut ked = KEventDispatcher::new(true);
@@ -67,15 +67,15 @@ fn kevent_dispatcher_add_event_receiver() {
     let rc1 = Rc::new(RefCell::new(KEventReceiverControl::new(true, true, true, true)));
     assert_ok!(ked.add_event_receiver(rc1.clone()), 0);
 
-    // V2 | Adding the same receiver via KEventDispatcher::add_event_receiver() should result in KEventDispatcherError::ReceiverAlreadyExists.
-    assert_err!(ked.add_event_receiver(rc1.clone()), KEventDispatcherError::ReceiverAlreadyExists);
+    // V2 | Adding the same receiver via KEventDispatcher::add_event_receiver() should result in OlympusError::KEventDispatcherReceiverAlreadyExists.
+    assert_err!(ked.add_event_receiver(rc1.clone()), OlympusError::KEventDispatcher(KEventDispatcherError::ReceiverAlreadyExists));
 }
 
 #[test]
 /// Remove an event receiver from KEventDispatcher
 /// 
 /// # Verification(s)
-/// V1 | KEventDispatcher::remove_event_receiver() should return KEventDispatcherError::ReceiverNotFound since receiver was not added.
+/// V1 | KEventDispatcher::remove_event_receiver() should return OlympusError::KEventDispatcherReceiverNotFound since receiver was not added.
 /// V2 | KEventDispatcher::add_event_receiver() correctly add receiver to KEventDispatcher.
 /// V3 | KEventDispatcher::remove_event_receiver() should return Ok(0).
 fn kevent_dispatcher_remove_event_receiver() {
@@ -85,8 +85,8 @@ fn kevent_dispatcher_remove_event_receiver() {
 
     let rc1 = Rc::new(RefCell::new(KEventReceiverControl::new(true, true, true, true)));
 
-    // V1 | KEventDispatcher::remove_event_receiver() should return KEventDispatcherError::ReceiverNotFound since receiver was not added.
-    assert_err!(ked.remove_event_receiver(rc1.clone()), KEventDispatcherError::ReceiverNotFound);
+    // V1 | KEventDispatcher::remove_event_receiver() should return OlympusError::KEventDispatcherReceiverNotFound since receiver was not added.
+    assert_err!(ked.remove_event_receiver(rc1.clone()), OlympusError::KEventDispatcher(KEventDispatcherError::ReceiverNotFound));
 
     // V2 | KEventDispatcher::add_event_receiver() correctly add receiver to KEventDispatcher.
     assert_ok!(ked.add_event_receiver(rc1.clone()), 0);
@@ -227,7 +227,7 @@ impl KEventDispatcherControl {
         // Window events
         events.push(KEvent::Window(KEventWindow::Shown()));
         events.push(KEvent::Window(KEventWindow::Hidden()));
-        events.push(KEvent::Window(KEventWindow::Exposed()));
+        events.push(KEvent::Window(KEventWindow::Exposed((10,10),(100,100))));
         events.push(KEvent::Window(KEventWindow::Moved((10,10))));
         events.push(KEvent::Window(KEventWindow::Resized((100,100))));
         events.push(KEvent::Window(KEventWindow::MovedResized((10,10),(100,100))));

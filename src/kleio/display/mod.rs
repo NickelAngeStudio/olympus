@@ -1,7 +1,6 @@
 /// # Re-export for Public API
 #[doc(inline)]
 pub use window::KWindow as KWindow;
-pub use window::KWindowError as KWindowError;
 pub use property::KWindowProperty as KWindowProperty;
 pub use property::KCursorMode as KCursorMode;
 pub use property::KCursorProperty as KCursorProperty;

@@ -1,33 +1,10 @@
 use std::{rc::Rc, cell::RefCell};
+use crate::error::{OlympusError, KEventDispatcherError};
+
 use super::KEvent;
 
 #[allow(unused_imports)]
 use super::super::KWindow;
-
-/// Enumeration of possible [KEventDispatcher] errors.
-pub enum KEventDispatcherError {
-
-    /// Happens when trying to add the same [KEventReceiver] twice to a [KWindow].
-    ReceiverAlreadyExists,
-
-    /// Happens when trying to remove a  [KEventReceiver] not added to a [KWindow].
-    ReceiverNotFound,
-
-    /// Happens when trying to dispatch events when no [KEventReceiver] were added.
-    DispatchNoReceiver,
-
-
-}
-
-impl std::fmt::Debug for KEventDispatcherError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::ReceiverAlreadyExists => write!(f, "ReceiverAlreadyExists"),
-            Self::ReceiverNotFound => write!(f, "ReceiverNotFound"),
-            Self::DispatchNoReceiver => write!(f, "DispatchNoReceiver"),
-        }
-    }
-}
 
 /// [KEventDispatcher] dispatch [KWindow] [KEvent] to [KEventReceiver].
 /// 
@@ -107,15 +84,15 @@ impl KEventDispatcher {
     /// ```
     /// 
     /// # Error(s)
-    /// Returns `Err(`[KEventDispatcherError::ReceiverAlreadyExists]`)` if receiver is already in list.
+    /// Returns `Err(`[OlympusError::KEventDispatcher(KEventDispatcherError::ReceiverAlreadyExists)]`)` if receiver is already in list.
     /// 
     /// # Note(s)
     /// [KEvent] dispatch from the most recent added [KEventReceiver] to the older, like a [Stack](https://en.wikipedia.org/wiki/Stack_(abstract_data_type)).
     /// That means that most recent [KEventReceiver] can mask events for older [KEventReceiver].
-    pub fn add_event_receiver(&mut self, receiver : Rc<RefCell<dyn KEventReceiver>>) -> Result<usize, KEventDispatcherError> {
+    pub fn add_event_receiver(&mut self, receiver : Rc<RefCell<dyn KEventReceiver>>) -> Result<usize, OlympusError> {
 
         match self.get_receiver_index(receiver.clone()) {
-            Ok(_) => Err(KEventDispatcherError::ReceiverAlreadyExists),
+            Ok(_) => Err(OlympusError::KEventDispatcher(KEventDispatcherError::ReceiverAlreadyExists)),
             Err(_) => { self.receivers.push(receiver.clone()); Ok(self.receivers.len() - 1) },
         }
 
@@ -126,12 +103,12 @@ impl KEventDispatcher {
     /// Returns [OK(usize)][Ok] with index of receiver removed.
     /// 
     /// # Error(s)
-    /// Returns `Err(`[KEventDispatcherError::ReceiverNotFound]`)` if receiver not found.
-    pub fn remove_event_receiver(&mut self, receiver : Rc<RefCell<dyn KEventReceiver>>) -> Result<usize, KEventDispatcherError> {
+    /// Returns `Err(`[OlympusError::KEventDispatcher(KEventDispatcherError::ReceiverNotFound)]`)` if receiver not found.
+    pub fn remove_event_receiver(&mut self, receiver : Rc<RefCell<dyn KEventReceiver>>) -> Result<usize, OlympusError> {
         
         match self.get_receiver_index(receiver.clone()) {
             Ok(index) => { self.receivers.remove(index); Ok(index) },
-            Err(_) => Err(KEventDispatcherError::ReceiverNotFound),
+            Err(_) => Err(OlympusError::KEventDispatcher(KEventDispatcherError::ReceiverNotFound)),
         }
 
     }
@@ -140,8 +117,8 @@ impl KEventDispatcher {
     /// Returns the index of a receiver from the list.
     /// 
     /// # Error(s)
-    /// Returns `Err(`[KEventDispatcherError::ReceiverNotFound]`)` if receiver not found.
-    fn get_receiver_index(&self, receiver : Rc<RefCell<dyn KEventReceiver>>)-> Result<usize, KEventDispatcherError> {
+    /// Returns `Err(`[OlympusError::KEventDispatcher(KEventDispatcherError::ReceiverNotFound)]`)` if receiver not found.
+    fn get_receiver_index(&self, receiver : Rc<RefCell<dyn KEventReceiver>>)-> Result<usize, OlympusError> {
         let mut found = false;
         let mut index: usize = 0;
 
@@ -157,7 +134,7 @@ impl KEventDispatcher {
             Ok(index)
         }
         else {
-            Err(KEventDispatcherError::ReceiverNotFound)
+            Err(OlympusError::KEventDispatcher(KEventDispatcherError::ReceiverNotFound))
         }
     }
 
@@ -181,89 +158,3 @@ pub trait KEventReceiver {
     /// If False, the [KEventReceiver] will NOT receive [KEvent].
     fn is_enabled(&self) -> bool;
 }
-
-
-/*
-use crate::kleio::window::{ KWindow};
-
-use super::{KEvent, KWindowError};
-
-/// Implementation of [KWindow] [KEventReceiver] handling.
-#[doc(hidden)]
-impl KWindow {   
-    
-
-    /// Dispatch [KEvent] to [KEventReceiver].
-    /// 
-    /// This function should be called at the beginning of each main loop.
-    /// 
-    /// Returns the count of [KEvent] dispatched.
-    /// 
-    /// # Example(s)
-    /// Dispatching at each loop call in Main loop
-    /// ```
-    /// // Create a KWindow
-    /// let mut w = KWindow::new(100,100,100,100);
-    /// 
-    /// ... add receivers to KWindow ...
-    /// 
-    /// loop {
-    ///     match w.dispatch_events(){
-    ///         Ok(event_count) => println!("{} events dispatched!", event_count),
-    ///         Err(_) => println!("No receivers added for dispatch!"),
-    ///     }
-    /// }
-    /// ```
-    /// 
-    /// # Error(s)
-    /// Returns `Err(`[KWindowError::DispatchNoReceiver]`)` if no receiver added to handle events.
-    pub fn dispatch_events(&mut self) -> Result<usize, KWindowError> {
-
-        // If no receivers, return error
-        if self.receivers.is_empty() {
-            Err(KWindowError::DispatchNoReceiver)
-        } else {
-        
-            // First get the event count to poll. This is important to prevent bloking.
-            let event_count = self.window_manager.get_event_count();
-
-            // Count of unknown events.
-            let mut unknown_count:usize = 0;
-
-            for _ in 0..event_count {
-                // Fetch event
-                let event = self.window_manager.poll_event();
-
-                match event {
-                    // Unknown event are ignored and deduced from event_count
-                    KEvent::Unknown => {
-                        unknown_count = unknown_count + 1;
-                    },
-                    _ => {
-                        // Iterate enabled receivers from newest to oldest
-                        for receiver in self.receivers.iter().rev().filter(|x| x.borrow().is_enabled() ) {
-                            
-                            let mut receiver = receiver.borrow_mut();
-                            if receiver.receive(&event) {
-                                break;  // Break loop since event was handled
-                            }
-                        }
-                    },
-                }
-
-            }
-
-            // Sync KWindowManager events
-            self.window_manager.sync_event();
-
-            // Return count of event handled
-            Ok(event_count - unknown_count)
-        }
-
-    }
-
-}
-
-
-
-*/

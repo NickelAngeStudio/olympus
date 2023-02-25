@@ -1,6 +1,6 @@
 use std::{fs::{self, File}, io::Write, path::PathBuf, vec};
 
-use olympus::kleio::asset::{KAssetBroker, KAssetSourceFolder, KAssetSource, KAssetBrokerError};
+use olympus::{kleio::asset::{KAssetBroker, KAssetSourceFolder, KAssetSource}, error::OlympusError};
 
 // Test folder where to create assets
 static TEST_FOLDER: &str = "target/tests/kleio/asset/";
@@ -611,7 +611,7 @@ fn create_test_folder_files(folder_name : &str, subf_id: usize){
 /// 
 /// # Panic
 /// Will panic if !expect_fail.
-fn match_source_to_broker<'a>(res : Result<usize, KAssetBrokerError>, expect_fail : bool){
+fn match_source_to_broker<'a>(res : Result<usize, OlympusError>, expect_fail : bool){
 
     match res{
         Ok(_) => assert!(!expect_fail, "Adding the same source should fail!"),

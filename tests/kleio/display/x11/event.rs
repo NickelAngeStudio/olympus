@@ -1,6 +1,6 @@
 use std::{rc::Rc, cell::RefCell, process::exit};
 
-use olympus::kleio::display::{KWindow, window::{KWINDOW_MIN_WIDTH, KWINDOW_MAX_WIDTH, KWINDOW_MIN_HEIGHT, KWINDOW_MAX_HEIGHT}, KWindowError, linux::server::KLinuxDisplayServerProvider, event::KEventDispatcher};
+use olympus::{kleio::display::{KWindow, window::{KWINDOW_MIN_WIDTH, KWINDOW_MAX_WIDTH, KWINDOW_MIN_HEIGHT, KWINDOW_MAX_HEIGHT}, linux::server::KLinuxDisplayServerProvider, event::KEventDispatcher}, error::{OlympusError, KWindowError}};
 
 use crate::{assert_err, assert_ok, kleio::display::{KEventReceiverControl}, kwindow_x11_prepare, kwindow_x11_step_loop};
 
@@ -19,23 +19,23 @@ pub const KWINDOW_HEIGHT:u32 = 240;
 /// Create a new X11 KWindow without error.
 /// 
 /// # Verification(s)
-/// V1 | KWindow::new(x11) width < KWINDOW_MIN_WIDTH should gives KWindowError::WindowSizeError.
-/// V2 | KWindow::new(x11) width > KWINDOW_MAX_WIDTH should gives KWindowError::WindowSizeError.
-/// V3 | KWindow::new(x11) height < KWINDOW_MIN_HEIGHT should gives KWindowError::WindowSizeError.
-/// V4 | KWindow::new(x11) height > KWINDOW_MAX_HEIGHT should gives KWindowError::WindowSizeError.
+/// V1 | KWindow::new(x11) width < KWINDOW_MIN_WIDTH should gives OlympusError::KWindowSizeError.
+/// V2 | KWindow::new(x11) width > KWINDOW_MAX_WIDTH should gives OlympusError::KWindowSizeError.
+/// V3 | KWindow::new(x11) height < KWINDOW_MIN_HEIGHT should gives OlympusError::KWindowSizeError.
+/// V4 | KWindow::new(x11) height > KWINDOW_MAX_HEIGHT should gives OlympusError::KWindowSizeError.
 /// V5 | KWindow::new(x11) created without error.
 fn kwindow_x11_new() {
     // V1 | KWindow::new(x11) width < KWINDOW_MIN_WIDTH should gives KWindowError::WindowSizeError.
-    assert_err!(KWindow::new(KWINDOW_MIN_WIDTH - 1, KWINDOW_HEIGHT, KLinuxDisplayServerProvider::X11), KWindowError::WindowSizeError);
+    assert_err!(KWindow::new(KWINDOW_MIN_WIDTH - 1, KWINDOW_HEIGHT, KLinuxDisplayServerProvider::X11), OlympusError::KWindow(KWindowError::SizeError));
 
     // V2 | KWindow::new(x11) width > KWINDOW_MAX_WIDTH should gives KWindowError::WindowSizeError.
-    assert_err!(KWindow::new(KWINDOW_MAX_WIDTH + 1, KWINDOW_HEIGHT, KLinuxDisplayServerProvider::X11), KWindowError::WindowSizeError);
+    assert_err!(KWindow::new(KWINDOW_MAX_WIDTH + 1, KWINDOW_HEIGHT, KLinuxDisplayServerProvider::X11), OlympusError::KWindow(KWindowError::SizeError));
 
     // V3 | KWindow::new(x11) height < KWINDOW_MIN_HEIGHT should gives KWindowError::WindowSizeError.
-    assert_err!(KWindow::new(KWINDOW_WIDTH, KWINDOW_MIN_HEIGHT - 1, KLinuxDisplayServerProvider::X11), KWindowError::WindowSizeError);
+    assert_err!(KWindow::new(KWINDOW_WIDTH, KWINDOW_MIN_HEIGHT - 1, KLinuxDisplayServerProvider::X11), OlympusError::KWindow(KWindowError::SizeError));
 
     // V4 | KWindow::new(x11) height > KWINDOW_MAX_HEIGHT should gives KWindowError::WindowSizeError.
-    assert_err!(KWindow::new(KWINDOW_WIDTH, KWINDOW_MAX_HEIGHT + 1, KLinuxDisplayServerProvider::X11), KWindowError::WindowSizeError);
+    assert_err!(KWindow::new(KWINDOW_WIDTH, KWINDOW_MAX_HEIGHT + 1, KLinuxDisplayServerProvider::X11), OlympusError::KWindow(KWindowError::SizeError));
 
     // V5 | KWindow::new(x11) created without error.
     let _kw = assert_ok!(KWindow::new(KWINDOW_WIDTH, KWINDOW_HEIGHT, KLinuxDisplayServerProvider::X11));

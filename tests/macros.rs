@@ -5,13 +5,11 @@
 /// <https://stackoverflow.com/questions/53124930/how-do-you-test-for-a-specific-rust-error/53124931#53124931>
 #[macro_export]
 macro_rules! assert_err {
-    ($expression:expr, $error:path) => {
-        match $expression {
-            Ok(_) => panic!("Expected Err(`{:?}`) but got Ok() instead!", $error),
-            Err(err) => match err {
-                $error => (),
-                _ => panic!("Expected Err(`{:?}`) but got Err(`{:?}`) instead!", $error, err),
-            }
+    ($expression:expr, $error:pat) => {
+        if let Err($error) = $expression  {
+            // Nothing because error is expected.  
+        } else {
+            panic!("Expected Err(`{:?}`) but got Ok() instead!", stringify!($error));    
         }
     }
 }
