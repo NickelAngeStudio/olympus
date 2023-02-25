@@ -1,11 +1,15 @@
+use std::ffi::CStr;
 use std::os::raw::{ c_int, c_long, c_uint, c_ulong, c_char, c_uchar, c_short, c_void };
 use std::ptr::null_mut;
 use std::{panic::catch_unwind};
-use crate::kleio::display::linux::x11::bind::XGetAtomName;
+use debug_print::debug_println;
+
+
+use crate::kleio::display::linux::x11::bind::{XGetAtomName, XFree};
 use crate::kleio::display::{KWindow, KCursorMode};
 use crate::kleio::display::event::KEventWindow;
 use crate::kleio::display::linux::x11::constant::GrabModeAsync;
-use crate::kleio::display::{ event::KEventDispatcher, event::KEventDispatcherError, KWindowError};
+use crate::kleio::display::{ event::KEventDispatcher };
 use crate::kleio::display::{linux::x11::{bind::{XDefaultRootWindow, XCreateSimpleWindow, XMapWindow, XSelectInput, XSync, XEventsQueued}, 
     constant::{KeyPressMask, ButtonPressMask, ExposureMask, KeyPress, KeyRelease, ButtonPress, MotionNotify, LeaveNotify, 
     ButtonRelease, EnterNotify, FocusIn, FocusOut, KeymapNotify, Expose, GraphicsExpose, NoExpose, VisibilityNotify, 
@@ -106,6 +110,30 @@ impl KWindow {
             XUngrabPointer(self.display_server.display, CurrentTime);
         }
     }
+
+    /// Set a new title for the [KWindow].
+    #[inline(always)]
+    pub(super) fn x11_set_title(&mut self) {
+        todo!()
+    }
+
+    /// Set position of [KWindow] according to position (x,y).
+    #[inline(always)]
+    pub(super) fn x11_set_position(&mut self){
+        todo!()
+    }
+
+    /// Set dimension of [KWindow] according to size (width, height).
+    #[inline(always)]
+    pub(super) fn x11_set_size(&mut self) {
+        todo!()
+    }
+
+    /// Set the [KWindow] as fullscreen.
+    #[inline(always)]
+    pub(super) fn x11_set_fullscreen(&mut self) {
+        todo!()
+    }
         
     /// Get if x11 display server is supported.
     #[inline(always)]
@@ -170,6 +198,12 @@ impl KWindow {
         }
     }
 
+    /// Restore the [KWindow], undoing any minimized, maximized and/or fullscreen status.
+    #[inline(always)]
+    pub fn x11_restore(&mut self) {
+        todo!()
+    }
+
     // Pop an event from the queue
     #[inline(always)]
     #[allow(non_upper_case_globals)]            // Imported C members aren't formatted according to convention.
@@ -188,8 +222,8 @@ impl KWindow {
                 KeyRelease=> KEvent::Keyboard(KEventKeyboard::KeyUp(xevent._xkey._keycode)),
 
 
-                ButtonPress=> { println!("KWindow({:p}), ButtonPress({})", self, xevent._type); KEvent::Unknown },
-                ButtonRelease=> { println!("KWindow({:p}), ButtonRelease({})", self, xevent._type); KEvent::Unknown },
+                ButtonPress=> { debug_println!("KWindow({:p}), ButtonPress({})", self, xevent._type); KEvent::Unknown },
+                ButtonRelease=> { debug_println!("KWindow({:p}), ButtonRelease({})", self, xevent._type); KEvent::Unknown },
 
                 // Cursor moved
                 MotionNotify=> {    
@@ -212,17 +246,21 @@ impl KWindow {
                 // Window lost focus
                 FocusOut=> KEvent::Window(KEventWindow::Blur()),
 
-                KeymapNotify=> { println!("KWindow({:p}), KeymapNotify({})", self, xevent._type); KEvent::Unknown },
-                Expose=> { println!("KWindow({:p}), Expose({})", self, xevent._type); KEvent::Unknown },
-                GraphicsExpose=> { println!("KWindow({:p}), GraphicsExpose({})", self, xevent._type); KEvent::Unknown },
-                NoExpose=> { println!("KWindow({:p}), NoExpose({})", self, xevent._type); KEvent::Unknown },
-                VisibilityNotify=> { println!("KWindow({:p}), VisibilityNotify({})", self, xevent._type); KEvent::Unknown },
-                CreateNotify=> { println!("KWindow({:p}), CreateNotify({})", self, xevent._type); KEvent::Unknown },
-                DestroyNotify=> { println!("KWindow({:p}), DestroyNotify({})", self, xevent._type); KEvent::Unknown },
-                UnmapNotify=> { println!("KWindow({:p}), UnmapNotify({})", self, xevent._type); KEvent::Unknown },
-                MapNotify=> { println!("KWindow({:p}), MapNotify({})", self, xevent._type); KEvent::Unknown },
-                MapRequest=> { println!("KWindow({:p}), MapRequest({})", self, xevent._type); KEvent::Unknown },
-                ReparentNotify=> { println!("KWindow({:p}), ReparentNotify({})", self, xevent._type); KEvent::Unknown },
+                KeymapNotify=> { debug_println!("KWindow({:p}), KeymapNotify({})", self, xevent._type); KEvent::Unknown },
+
+                // Part of window need to be redrawed 
+                Expose=> { 
+                    KEvent::Window(KEventWindow::Exposed((xevent._xexpose._x, xevent._xexpose._y), (xevent._xexpose._width as u32, xevent._xexpose._height as u32)))
+                },
+                GraphicsExpose=> { debug_println!("KWindow({:p}), GraphicsExpose({})", self, xevent._type); KEvent::Unknown },
+                NoExpose=> { debug_println!("KWindow({:p}), NoExpose({})", self, xevent._type); KEvent::Unknown },
+                VisibilityNotify=> { debug_println!("KWindow({:p}), VisibilityNotify({})", self, xevent._type); KEvent::Unknown },
+                CreateNotify=> { debug_println!("KWindow({:p}), CreateNotify({})", self, xevent._type); KEvent::Unknown },
+                DestroyNotify=> { debug_println!("KWindow({:p}), DestroyNotify({})", self, xevent._type); KEvent::Unknown },
+                UnmapNotify=> { debug_println!("KWindow({:p}), UnmapNotify({})", self, xevent._type); KEvent::Unknown },
+                MapNotify=> { debug_println!("KWindow({:p}), MapNotify({})", self, xevent._type); KEvent::Unknown },
+                MapRequest=> { debug_println!("KWindow({:p}), MapRequest({})", self, xevent._type); KEvent::Unknown },
+                ReparentNotify=> { debug_println!("KWindow({:p}), ReparentNotify({})", self, xevent._type); KEvent::Unknown },
 
                 // Window position and/or size changed
                 ConfigureNotify=> { 
@@ -240,295 +278,175 @@ impl KWindow {
                     }
                 },
 
-                ConfigureRequest=> { println!("KWindow({:p}), ConfigureRequest({})", self, xevent._type); KEvent::Unknown },
-                GravityNotify=> { println!("KWindow({:p}), GravityNotify({})", self, xevent._type); KEvent::Unknown },
-                //ResizeRequest=> { 
-                //    println!("KWindow({:p}), ResizeRequest({})", self, xevent._type); 
-                //    KEvent::Window(KEventWindow::Resized((xevent._xresizerequest._width.try_into().unwrap(), xevent._xresizerequest._width.try_into().unwrap())))
-                //},
-                CirculateNotify=> { println!("KWindow({:p}), CirculateNotify({})", self, xevent._type); KEvent::Unknown },
-                CirculateRequest=> { println!("KWindow({:p}), CirculateRequest({})", self, xevent._type); KEvent::Unknown },
-                PropertyNotify=> { 
-                    // Window state changed
-                    if xevent._xproperty._atom == self.display_server.x11_property.wm_state {
-                        let property : Atom = self.display_server.x11_property.wm_state; 
-                        let long_offset : c_long = 0; 
-                        let long_length : c_long = 1024; 
-                        let delete : bool = false; 
-                        let req_type : Atom = self.display_server.x11_property.xa_atom; 
-                        let mut actual_type_return : Atom = 0;
-                        let mut actual_format_return : c_int = 0; 
-                        let mut nitems_return : c_ulong = 0; 
-                        let mut bytes_after_return : c_ulong = 0; 
-                        let mut prop_return : *mut c_char = null_mut();
+                ConfigureRequest=> { debug_println!("KWindow({:p}), ConfigureRequest({})", self, xevent._type); KEvent::Unknown },
+                GravityNotify=> { debug_println!("KWindow({:p}), GravityNotify({})", self, xevent._type); KEvent::Unknown },
 
-                        let res = XGetWindowProperty(self.display_server.display, self.display_server.window, property, 
-                            long_offset, long_length, delete, req_type, &mut actual_type_return, &mut actual_format_return, 
-                            &mut nitems_return, &mut bytes_after_return, &mut prop_return);
-                            
-                        println!("WMSTATE RES={}, actual_type_return={}, actual_format_return={}, nitems_return={}, bytes_after_return={}, prop_return={:?}", 
-                            res, actual_type_return, actual_format_return, nitems_return, bytes_after_return, prop_return);
-
-                        // TODO:Call XFREE
-                        //XFree(atoms);
+                CirculateNotify=> { debug_println!("KWindow({:p}), CirculateNotify({})", self, xevent._type); KEvent::Unknown },
+                CirculateRequest=> { debug_println!("KWindow({:p}), CirculateRequest({})", self, xevent._type); KEvent::Unknown },
+                PropertyNotify=> { // This section could use a lil refactorisation.
+                    let states = self.get_x11_window_states();
+                    
+                    
+                    if states.0 {   // Send minimized if not already registered.
+                        if !self.property.minimized {
+                            self.property.minimized = true;
+                            return KEvent::Window(KEventWindow::Minimized());
+                        }
+                    } else {    // Send restore if not already registered.
+                        if self.property.minimized {
+                            self.property.minimized = false;
+                            return KEvent::Window(KEventWindow::Restored());
+                        }
                     }
 
-                    //let a = CStr::from_ptr(XGetAtomName(self.display_server.display ,xevent._xproperty._atom));
-                    //println!("Atom {}={:?}", xevent._xproperty._atom, a);
+                    if states.1 {   // Send maximized if not already registered.
+                        if !self.property.maximized {
+                            self.property.maximized = true;
+                            return KEvent::Window(KEventWindow::Maximized());
+                        }
+                    } else {    // Send restore if not already registered.
+                        if self.property.maximized {
+                            self.property.maximized = false;
+                            return KEvent::Window(KEventWindow::Restored());
+                        }
+                    }
 
-                    //println!("_xproperty = {:?}", xevent._xproperty);
-                    //println!("KWindow({:p}), PropertyNotify({}, atom={})", self, xevent._type, xevent._xproperty._atom); 
-                    KEvent::Unknown 
+                    if states.2 {   // Send fullscreen if not already registered.
+                        if !self.property.fullscreen {
+                            self.property.fullscreen = true;
+                            return KEvent::Window(KEventWindow::Fullscreen());
+                        }
+                    } else {    // Send restore if not already registered.
+                        if self.property.fullscreen {
+                            self.property.fullscreen = false;
+                            return KEvent::Window(KEventWindow::Restored());
+                        }
+                    }
+
+                    KEvent::None 
                 },
-                SelectionClear=> { println!("KWindow({:p}), SelectionClear({})", self, xevent._type); KEvent::Unknown },
-                SelectionRequest=> { println!("KWindow({:p}), SelectionRequest({})", self, xevent._type); KEvent::Unknown },
-                SelectionNotify=> { println!("KWindow({:p}), SelectionNotify({})", self, xevent._type); KEvent::Unknown },
-                ColormapNotify=> { println!("KWindow({:p}), ColormapNotify({})", self, xevent._type); KEvent::Unknown },
-                ClientMessage=> { println!("KWindow({:p}), ClientMessage({})", self, xevent._type); KEvent::Unknown },
-                MappingNotify=> { println!("KWindow({:p}), MappingNotify({})", self, xevent._type); KEvent::Unknown },
-                GenericEvent=> { println!("KWindow({:p}), GenericEvent({})", self, xevent._type); KEvent::Unknown },
-                _ => { println!("KWindow({:p}), _({})", self, xevent._type); KEvent::Unknown },
+                SelectionClear=> { debug_println!("KWindow({:p}), SelectionClear({})", self, xevent._type); KEvent::Unknown },
+                SelectionRequest=> { debug_println!("KWindow({:p}), SelectionRequest({})", self, xevent._type); KEvent::Unknown },
+                SelectionNotify=> { debug_println!("KWindow({:p}), SelectionNotify({})", self, xevent._type); KEvent::Unknown },
+                ColormapNotify=> { debug_println!("KWindow({:p}), ColormapNotify({})", self, xevent._type); KEvent::Unknown },
+                ClientMessage=> { debug_println!("KWindow({:p}), ClientMessage({})", self, xevent._type); KEvent::Unknown },
+                MappingNotify=> { debug_println!("KWindow({:p}), MappingNotify({})", self, xevent._type); KEvent::Unknown },
+                GenericEvent=> { debug_println!("KWindow({:p}), GenericEvent({})", self, xevent._type); KEvent::Unknown },
+                _ => { debug_println!("KWindow({:p}), _({})", self, xevent._type); KEvent::Unknown },
             }
         }
     }
-    
-}
 
 
-
-/*
-/// # X11 display server backend
-pub struct X11DisplayServer {
-    /// Used to fetch events
-    event : XEvent,
-
-    /// X11 Display pointer
-    display : *mut Display,
-
-    /// X11 Window pointer
-    window : *mut Window,
-}
-
-
-
-impl KLinuxDisplayServer for X11DisplayServer {
-    
-
-    
-    fn pop_event(&mut self) -> KEvent {
-        self.fetch_event()
-    }
-
-    fn get_display_server_provider(&self) -> LinuxDisplayServerProvider {
-        LinuxDisplayServerProvider::X11
-    }
-
-    fn get_event_count(&self) -> usize {
+    /// Get X11 window state as a triplet booleans (minimized, maximized, fullscreen).
+    /// 
+    /// This function query XGetWindowProperty() to get Atoms used to identify those properties.
+    #[inline(always)]
+    fn get_x11_window_states(&self) -> (bool,bool,bool){
         unsafe {
-            XEventsQueued(self.display, 0).try_into().unwrap()
-        }   
-    }
+            // State values returned
+            let mut hidden : bool = false;
+            let mut maximized = false;
+            let mut fullscreen = false;
 
-    fn sync_events(&self) {
-        
-    }
+            // Used to capture XGetWindowProperty
+            let mut actual_type_return : Atom = 0;
+            let mut actual_format_return : c_int = 0; 
+            let mut nitems_return : c_ulong = 0; 
+            let mut bytes_after_return : c_ulong = 0; 
+            let mut prop_return : *mut c_char = null_mut();
 
-    fn get_display_server_connection(&self) -> *const Display {
-        self.display
-    }
-
-    fn get_display_server_window(&self) -> *const Window {
-        self.window
-    }
-
-    fn set_cursor_position(&mut self, position : (i32, i32), size : (u32, u32)) {
-        
-    }
-
-    fn get_cursor_position(&self) -> (i32, i32) {
-        todo!()
-    }
-
-
-}
-
-/// Private event fetch function
-impl X11DisplayServer {
-   
-    fn fetch_event(&mut self) -> KEvent {
-        
-}
-
-impl KLinuxDisplayServer for X11DisplayServer {
-    fn get_display_server_provider(&self) -> LinuxDisplayServerProvider{
-        LinuxDisplayServerProvider::X11
-    }
-
-    fn is_compatible() -> bool {
-        unsafe {
-            // Try to call C function with error handling.
-            let result = catch_unwind(|| {
-                XOpenDisplay(std::ptr::null())
-            }); 
-
-            match result {
-                Ok(display) => {
-                    if display == std::ptr::null_mut() {
-                        false
-                    } else {
-                        // Disconnect display before returning true
-                        XCloseDisplay(display);
-
-                        true
-                    }
-                },
-
-                // Error occurred, not compatible.
-                Err(_) => false,
-            }
-        }
-    }
-    
-
-    #[allow(non_upper_case_globals)]            // Imported C members aren't formatted according to convention.
-    fn poll_event(&mut self) -> KEvent {
-        unsafe {
-            XNextEvent(self.display, &mut self.event);            
+            XGetWindowProperty(self.display_server.display, self.display_server.window, self.display_server.x11_property.wm_state, 
+                0, 1024, false, self.display_server.x11_property.xa_atom, &mut actual_type_return, &mut actual_format_return, 
+                &mut nitems_return, &mut bytes_after_return, &mut prop_return);
             
-            match self.event._type {
-                KeyPress => { println!("KWindow({:p}), KeyPress({})", self, self.event._type); 
-                    KEvent::Keyboard(KEventKeyboard::KeyDown(self.event._xkey._keycode)) },
-                KeyRelease=> { println!("KWindow({:p}), KeyRelease({})", self, self.event._type); KEvent::Unknown },
-                ButtonPress=> { println!("KWindow({:p}), ButtonPress({})", self, self.event._type); KEvent::Unknown },
-                ButtonRelease=> { println!("KWindow({:p}), ButtonRelease({})", self, self.event._type); KEvent::Unknown },
-                MotionNotify=> {
-                    KEvent::Mouse(KEventMouse::Moved((self.event._xmotion._x, self.event._xmotion._y)))
-                },
-                EnterNotify=> { println!("KWindow({:p}), EnterNotify({})", self, self.event._type); KEvent::Unknown },
-                LeaveNotify=> { println!("KWindow({:p}), LeaveNotify({})", self, self.event._type); KEvent::Unknown },
-                FocusIn=> KEvent::Window(window::KEventWindow::Focus()),
-                FocusOut=> KEvent::Window(window::KEventWindow::Blur()),
-                KeymapNotify=> { println!("KWindow({:p}), KeymapNotify({})", self, self.event._type); KEvent::Unknown },
-                Expose=> { println!("KWindow({:p}), Expose({})", self, self.event._type); KEvent::Unknown },
-                GraphicsExpose=> { println!("KWindow({:p}), GraphicsExpose({})", self, self.event._type); KEvent::Unknown },
-                NoExpose=> { println!("KWindow({:p}), NoExpose({})", self, self.event._type); KEvent::Unknown },
-                VisibilityNotify=> { println!("KWindow({:p}), VisibilityNotify({})", self, self.event._type); KEvent::Unknown },
-                CreateNotify=> { println!("KWindow({:p}), CreateNotify({})", self, self.event._type); KEvent::Unknown },
-                DestroyNotify=> { println!("KWindow({:p}), DestroyNotify({})", self, self.event._type); KEvent::Unknown },
-                UnmapNotify=> { println!("KWindow({:p}), UnmapNotify({})", self, self.event._type); KEvent::Unknown },
-                MapNotify=> { println!("KWindow({:p}), MapNotify({})", self, self.event._type); KEvent::Unknown },
-                MapRequest=> { println!("KWindow({:p}), MapRequest({})", self, self.event._type); KEvent::Unknown },
-                ReparentNotify=> { println!("KWindow({:p}), ReparentNotify({})", self, self.event._type); KEvent::Unknown },
-                ConfigureNotify=> { println!("KWindow({:p}), ConfigureNotify({})", self, self.event._type); KEvent::Unknown },
-                ConfigureRequest=> { println!("KWindow({:p}), ConfigureRequest({})", self, self.event._type); KEvent::Unknown },
-                GravityNotify=> { println!("KWindow({:p}), GravityNotify({})", self, self.event._type); KEvent::Unknown },
-                ResizeRequest=> { println!("KWindow({:p}), ResizeRequest({})", self, self.event._type); KEvent::Unknown },
-                CirculateNotify=> { println!("KWindow({:p}), CirculateNotify({})", self, self.event._type); KEvent::Unknown },
-                CirculateRequest=> { println!("KWindow({:p}), CirculateRequest({})", self, self.event._type); KEvent::Unknown },
-                PropertyNotify=> { println!("KWindow({:p}), PropertyNotify({})", self, self.event._type); KEvent::Unknown },
-                SelectionClear=> { println!("KWindow({:p}), SelectionClear({})", self, self.event._type); KEvent::Unknown },
-                SelectionRequest=> { println!("KWindow({:p}), SelectionRequest({})", self, self.event._type); KEvent::Unknown },
-                SelectionNotify=> { println!("KWindow({:p}), SelectionNotify({})", self, self.event._type); KEvent::Unknown },
-                ColormapNotify=> { println!("KWindow({:p}), ColormapNotify({})", self, self.event._type); KEvent::Unknown },
-                ClientMessage=> { println!("KWindow({:p}), ClientMessage({})", self, self.event._type); KEvent::Unknown },
-                MappingNotify=> { println!("KWindow({:p}), MappingNotify({})", self, self.event._type); KEvent::Unknown },
-                GenericEvent=> { println!("KWindow({:p}), GenericEvent({})", self, self.event._type); KEvent::Unknown },
-                _ => { println!("KWindow({:p}), _({})", self, self.event._type); KEvent::Unknown },
+            // Only query if count of items > 0
+            if nitems_return > 0 {
+                // Converting according to actual_format_return
+                match actual_format_return {
+                    // 8 bits
+                    8 => {
+                        // Convert properties to u8
+                        let states: &mut [u8] = core::slice::from_raw_parts_mut(prop_return as *mut u8, nitems_return as usize);
+                        for state in states{
+                            match *state as Atom {
+                                state if self.display_server.x11_property.wm_state_hidden == state => {
+                                    hidden = true;
+                                },
+                                state if self.display_server.x11_property.wm_state_fullscreen == state => {
+                                    fullscreen = true;
+                                },
+                                state if self.display_server.x11_property.wm_state_max_horz == state => {
+                                    maximized = true;
+                                },
+                                state if self.display_server.x11_property.wm_state_max_vert == state => {
+                                    maximized = true;
+                                },
+                                0 => {},   // Do nothing with 0 atoms
+                                _ => {},
+                            }
+                        }
+                        
+                    },
+                    // 16 bits
+                    16 => {
+                        // Convert properties to u16
+                        let states: &mut [u16] = core::slice::from_raw_parts_mut(prop_return as *mut u16, nitems_return as usize);
+                        for state in states{
+                            match *state as Atom {
+                                state if self.display_server.x11_property.wm_state_hidden == state => {
+                                    hidden = true;
+                                },
+                                state if self.display_server.x11_property.wm_state_fullscreen == state => {
+                                    fullscreen = true;
+                                },
+                                state if self.display_server.x11_property.wm_state_max_horz == state => {
+                                    maximized = true;
+                                },
+                                state if self.display_server.x11_property.wm_state_max_vert == state => {
+                                    maximized = true;
+                                },
+                                0 => {},   // Do nothing with 0 atoms
+                                _ => {},
+                            }
+                        }
+                    },
+
+                    // 32 bits
+                    32 => {
+                        // Convert properties to u32
+                        let states: &mut [u32] = core::slice::from_raw_parts_mut(prop_return as *mut u32, nitems_return as usize);
+                        for state in states{
+                            match *state as Atom {
+                                state if self.display_server.x11_property.wm_state_hidden == state => {
+                                    hidden = true;
+                                },
+                                state if self.display_server.x11_property.wm_state_fullscreen == state => {
+                                    fullscreen = true;
+                                },
+                                state if self.display_server.x11_property.wm_state_max_horz == state => {
+                                    maximized = true;
+                                },
+                                state if self.display_server.x11_property.wm_state_max_vert == state => {
+                                    maximized = true;
+                                },
+                                0 => {},   // Do nothing with 0 atoms
+                                _ => { }
+                            }
+                        }
+                    },
+
+                    // Anything else is an error
+                    _ => panic!("Wrong `actual_format_return` format size!"),
+                }
             }
+
+            // Free data returned.
+            XFree(prop_return);
+
+            // Return state
+            (hidden, maximized, fullscreen)
         }
     }
-
-
-    fn get_event_count(&self) -> usize {
-        unsafe {
-            XEventsQueued(self.display, 0).try_into().unwrap()
-        }   
-    }
-
-    fn sync_event(&self) {
-        unsafe {
-            // The XSync() function flushes the output buffer and then waits until all requests have been received and processed by the X server.
-            XSync(self.display, false);
-        }
-    }
-
-    fn set_title(&self, title : &str) {
-        todo!()
-    }
-
-    fn get_title(&self) -> &str {
-        todo!()
-    }
-
-    fn set_size(&self, dimension : (usize, usize)) {
-        todo!()
-    }
-
-    fn get_size(&self) -> (usize, usize) {
-        todo!()
-    }
-
-    fn set_fullscreen(&self, fullscreen : bool) {
-        todo!()
-    }
-
-    fn is_fullscreen(&self) -> bool {
-        todo!()
-    }
-
-    fn set_minimized(&self, minimized : bool) {
-        todo!()
-    }
-
-    fn is_minimized(&self) -> bool {
-        todo!()
-    }
-
-    fn set_maximized(&self, maximized : bool) {
-        todo!()
-    }
-
-    fn is_maximized(&self) -> bool {
-        todo!()
-    }
-
-    fn restore(&self) {
-        todo!()
-    }
-
-    fn show_cursor(&self,keep_inside_window : bool) {
-        todo!()
-    }
-
-    fn hide_cursor(&self) {
-        todo!()
-    }
-
-    fn set_cursor_position(&self, position : (i32, i32)) {
-        todo!()
-    }
-
-    fn is_cursor_hidden(&self) {
-        todo!()
-    }
-
-    fn set_motion_mode(&self, mode : window::KWindowMotionMode) {
-        todo!()
-    }
-
-    fn get_motion_mode(&self) -> window::KWindowMotionMode {
-        todo!()
-    }
-
-    fn get_display_server_connection(&self) -> *const Display {
-        todo!()
-    }
-
-    fn get_display_server_window(&self) -> *const Window {
-        todo!()
-    }
-
     
 }
-*/
-

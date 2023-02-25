@@ -11,11 +11,10 @@ license = "MIT"
 
 
 [features]
-no_wayland = []     # Remove Wayland support for Linux
-git_workflow = []   # Used to identify that tests are runned by Git Workflow
+
 
 [dependencies]
-
+debug_print = "1.0.0"       # Small crate from Debug print
 
 
 [package.metadata.docs.rs]

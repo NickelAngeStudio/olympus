@@ -75,6 +75,36 @@ impl KWindow {
     pub fn wayland_show_cursor(&mut self) {
         todo!()
     }
+
+    /// Restore the [KWindow], undoing any minimized, maximized and/or fullscreen status.
+    #[inline(always)]
+    pub fn wayland_restore(&mut self) {
+        todo!()
+    }
+
+    /// Set a new title for the [KWindow].
+    #[inline(always)]
+    pub(super) fn wayland_set_title(&mut self) {
+        todo!()
+    }
+
+    /// Set position of [KWindow] according to position (x,y).
+    #[inline(always)]
+    pub(super) fn wayland_set_position(&mut self){
+        todo!()
+    }
+
+    /// Set dimension of [KWindow] according to size (width, height).
+    #[inline(always)]
+    pub(super) fn wayland_set_size(&mut self) {
+        todo!()
+    }
+
+    /// Set the [KWindow] as fullscreen.
+    #[inline(always)]
+    pub(super) fn wayland_set_fullscreen(&mut self) {
+        todo!()
+    }
   
     /// Get if Wayland is supported.
     #[inline(always)]

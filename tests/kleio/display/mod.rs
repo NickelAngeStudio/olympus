@@ -68,7 +68,6 @@ macro_rules! kwindow_x11_step_loop {
 
     // With message
     ($message:expr, $kwindow:ident, $dispatcher:ident, $receiver:ident) => {{
-        //print!("{}[2J", 27 as char);
         println!("\x1b[93m{}\x1b[0m", $message);
 
         loop {
@@ -143,7 +142,6 @@ impl KEventReceiver for KEventReceiverControl {
                     if *keycode == self.step_key {
                         self.state = KEventReceiverControlState::NextStep;
                     }
-
 
                     if *keycode == self.exit_key {
                         self.state = KEventReceiverControlState::Exit;

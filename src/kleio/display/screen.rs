@@ -31,17 +31,9 @@ impl KScreenList {
         match provider {
             super::linux::server::KLinuxDisplayServerProvider::Default => Err(KScreenListError::DefaultLinuxDisplayProviderError),
             super::linux::server::KLinuxDisplayServerProvider::Wayland => {
-                #[cfg(all(not(git_workflow), not(feature="no_wayland")))] 
-                {
-                    match super::linux::wayland::screen::get_wayland_screen() {
-                        Ok(screen_list) => Ok(KScreenList { screen_list, width: 0, height: 0 }),
-                        Err(err) => Err(err),
-                    }
-                }
-
-                #[cfg(any(feature="git_workflow", feature="no_wayland"))]    // If no wayland, return error
-                {
-                    Err(KScreenListError::FetchScreenListError)
+                match super::linux::wayland::screen::get_wayland_screen() {
+                    Ok(screen_list) => Ok(KScreenList { screen_list, width: 0, height: 0 }),
+                    Err(err) => Err(err),
                 }
             },
             super::linux::server::KLinuxDisplayServerProvider::X11 => {

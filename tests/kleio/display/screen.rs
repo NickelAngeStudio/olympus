@@ -30,12 +30,9 @@ fn kscreen_list_new() {
 
         /*
         TODO:Disabled until Wayland implementation
-        #[cfg(not(feature="no_wayland"))]     // Add Wayland if not remove via feature.
-        {
-            let kl = assert_ok!(KScreenList::new(olympus::kleio::display::linux::LinuxDisplayServerProvider::Wayland));
-            print_screen_list(&kl);
-            test_kscreen_list_fields(&kl);
-        }
+        let kl = assert_ok!(KScreenList::new(olympus::kleio::display::linux::LinuxDisplayServerProvider::Wayland));
+        print_screen_list(&kl);
+        test_kscreen_list_fields(&kl);
         */
     }
 
