@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - uses: actions/checkout@v3
     - name: Install wayland-client
     - run: sudo apt-get install -y libwayland-dev
-    - uses: actions/checkout@v3
     - name: Build
       run: cargo build --verbose
     - name: Run tests
