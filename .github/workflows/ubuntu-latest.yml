@@ -20,6 +20,8 @@ jobs:
     - uses: actions/checkout@v3
     - name: Install wayland-client
       run: sudo apt-get install -y libwayland-dev
+    - name: Install Xfixes
+      run : sudo apt install -y libxcb-xfixes0-dev
     - name: Build
       run: cargo build --verbose
     - name: Run tests

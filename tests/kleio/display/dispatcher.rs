@@ -225,8 +225,8 @@ impl KEventDispatcherControl {
         events.push(KEvent::Mouse(KEventMouse::Wheel(-255,255)));
 
         // Window events
-        events.push(KEvent::Window(KEventWindow::Shown()));
-        events.push(KEvent::Window(KEventWindow::Hidden()));
+        events.push(KEvent::Window(KEventWindow::CursorEnter()));
+        events.push(KEvent::Window(KEventWindow::CursorLeave()));
         events.push(KEvent::Window(KEventWindow::Exposed((10,10),(100,100))));
         events.push(KEvent::Window(KEventWindow::Moved((10,10))));
         events.push(KEvent::Window(KEventWindow::Resized((100,100))));

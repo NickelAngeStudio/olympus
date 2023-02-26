@@ -18,7 +18,7 @@ use crate::kleio::display::{linux::x11::{bind::{XDefaultRootWindow, XCreateSimpl
     ColormapNotify, ClientMessage, MappingNotify, GenericEvent}}, event::KEvent, self, event::KEventMouse, event::KEventKeyboard};
 
 use self::bind::{XWarpPointer, XFixesHideCursor, XGrabPointer, XFixesShowCursor, XUngrabPointer, XGetWindowProperty};
-use self::constant::CurrentTime;
+use self::constant::{CurrentTime, VisibilityUnobscured};
 use self::event::Atom;
 use self::{event::{ XEvent }, bind::{XOpenDisplay, XCloseDisplay, XNextEvent}, constant::{KeyReleaseMask, ButtonReleaseMask, LeaveWindowMask, EnterWindowMask, Button1MotionMask, PointerMotionMask, Button3MotionMask, Button2MotionMask, Button5MotionMask, Button4MotionMask, ButtonMotionMask, StructureNotifyMask, ResizeRedirectMask, VisibilityChangeMask, FocusChangeMask, PropertyChangeMask}};
 
@@ -34,6 +34,9 @@ pub mod constant;
 #[allow(non_snake_case)]            // Imported C members aren't formatted according to convention.
 pub mod event;
 
+/// Contains X11 Window attributes
+pub mod attributes;
+
 /// Contains X11 C functions Bind
 pub mod bind;
 
@@ -43,15 +46,6 @@ pub mod screen;
 /// Implementation of privates elements relatives to X11 display server
 #[doc(hidden)]
 impl KWindow {
-
-    // Get cursor position
-    #[inline(always)]
-    pub(super) fn x11_get_cursor_position(&self) -> (i32, i32){
-        todo!()
-    }
-
-
-    
 
     // Sync an event from the queue
     #[inline(always)]
@@ -114,18 +108,6 @@ impl KWindow {
     /// Set a new title for the [KWindow].
     #[inline(always)]
     pub(super) fn x11_set_title(&mut self) {
-        todo!()
-    }
-
-    /// Set position of [KWindow] according to position (x,y).
-    #[inline(always)]
-    pub(super) fn x11_set_position(&mut self){
-        todo!()
-    }
-
-    /// Set dimension of [KWindow] according to size (width, height).
-    #[inline(always)]
-    pub(super) fn x11_set_size(&mut self) {
         todo!()
     }
 
@@ -254,7 +236,13 @@ impl KWindow {
                 },
                 GraphicsExpose=> { debug_println!("KWindow({:p}), GraphicsExpose({})", self, xevent._type); KEvent::Unknown },
                 NoExpose=> { debug_println!("KWindow({:p}), NoExpose({})", self, xevent._type); KEvent::Unknown },
-                VisibilityNotify=> { debug_println!("KWindow({:p}), VisibilityNotify({})", self, xevent._type); KEvent::Unknown },
+                VisibilityNotify=> { 
+                    if xevent._xvisibility._state == VisibilityUnobscured {
+                        KEvent::Window(KEventWindow::Shown())
+                    } else {
+                        KEvent::Window(KEventWindow::Hidden())
+                    }
+                },
                 CreateNotify=> { debug_println!("KWindow({:p}), CreateNotify({})", self, xevent._type); KEvent::Unknown },
                 DestroyNotify=> { debug_println!("KWindow({:p}), DestroyNotify({})", self, xevent._type); KEvent::Unknown },
                 UnmapNotify=> { debug_println!("KWindow({:p}), UnmapNotify({})", self, xevent._type); KEvent::Unknown },

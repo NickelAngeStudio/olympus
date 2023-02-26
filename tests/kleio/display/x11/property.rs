@@ -181,8 +181,6 @@ fn kwindow_x11_cursor_properties() {
 
 
 
-
-/*
 #[test]
 #[ignore = "User interaction"]
 /// Get and set X11 KWindow cursor position.
@@ -206,58 +204,28 @@ fn kwindow_x11_cursor_position() {
         assert_eq!(_cp.1, CURSOR_Y / 2, "Cursor Y expect {} and not {}!", CURSOR_Y / 2, _cp.1);
 
         // V4 | Change motion mode to Acceleration. Window::set_cursor_position() should give center.
-        wx11.set_cursor_mode(KMouseMode::Acceleration);
+        wx11.set_cursor_mode(KCursorMode::Acceleration);
 
         let _cp = wx11.get_cursor_position();
         assert_eq!(_cp.0, CURSOR_X, "Cursor X expect {} and not {}!", CURSOR_X, _cp.0);
         assert_eq!(_cp.1, CURSOR_Y, "Cursor Y expect {} and not {}!", CURSOR_Y, _cp.1);
     });
 }
-*/
+
 
 #[test]
 #[ignore = "User interaction"]
 /// Get and set X11 KWindow position.
 /// 
 /// # Verification(s)
-/// V1 | KWindow::get_position() returns the default position.
-/// V2 | KWindow::set_position() set the new position without errors.
-/// V3 | KWindow::get_position() returns the new position.
-/// V4 | KWindow::set_position() set the new position to negative position without errors.
-/// V5 | KWindow::get_position() returns the new position.
+/// V1 | KWindow::get_position() doesn't return (0,0).
 fn kwindow_x11_position() {
     kwindow_x11_prepare!(wx11, dispatcher, receiver, {
-        // V1 | KWindow::get_position() returns the default position.
-        match wx11.get_screen_list().get_primary_screen() {
-            Some(primary) => {
-                let defposx:i32 = (primary.get_current_width() / 2 - KWINDOW_WIDTH / 2).try_into().unwrap();
-                let defposy:i32 = (primary.get_current_height() / 2 - KWINDOW_HEIGHT / 2).try_into().unwrap();
-
-                let pos = wx11.get_position();
-                assert_eq!(pos.0, defposx, "Position X expect {} and not {}!", defposx, pos.0);
-                assert_eq!(pos.1, defposy, "Position Y expect {} and not {}!", defposy, pos.1);
-
-            },
-            None => panic!("No screen connected for test!"),
-        }        
-
-        // V2 | KWindow::set_position() set the new position without errors.
-        wx11.set_position((KWINDOW_POS_X, KWINDOW_POS_Y));
-
-        // V3 | KWindow::get_position() returns the new position.
+        // V1 | KWindow::get_position() doesn't return (0,0).
         let pos = wx11.get_position();
-        assert_eq!(pos.0, KWINDOW_POS_X, "Position X expect {} and not {}!", KWINDOW_POS_X, pos.0);
-        assert_eq!(pos.1, KWINDOW_POS_Y, "Position Y expect {} and not {}!", KWINDOW_POS_Y, pos.1);
-
-        kwindow_x11_step_loop!(wx11, dispatcher, receiver);
-
-        // V4 | KWindow::set_position() set the new position to negative position without errors.
-        wx11.set_position((KWINDOW_POS_X * -1, KWINDOW_POS_Y * -1));
-
-        // V5 | KWindow::get_position() returns the new position.
-        let pos = wx11.get_position();
-        assert_eq!(pos.0, KWINDOW_POS_X * -1, "Position X expect {} and not {}!", KWINDOW_POS_X * -1, pos.0);
-        assert_eq!(pos.1, KWINDOW_POS_Y * -1, "Position Y expect {} and not {}!", KWINDOW_POS_Y * -1, pos.1);
+        println!("Position={:?}", pos);
+        assert!(pos.0 > 0, "Position X expected > 0!");
+        assert!(pos.1 > 0, "Position Y expected > 0!");
     });
 }
 
@@ -267,47 +235,12 @@ fn kwindow_x11_position() {
 /// 
 /// # Verification(s)
 /// V1 | KWindow::get_size() returns the default size.
-/// V2 | KWindow::set_size() width < KWINDOW_MIN_WIDTH should gives OlympusError::KWindowSizeError.
-/// V3 | KWindow::set_size() width > KWINDOW_MAX_WIDTH should gives OlympusError::KWindowSizeError.
-/// V4 | KWindow::set_size() height < KWINDOW_MIN_HEIGHT should gives OlympusError::KWindowSizeError.
-/// V5 | KWindow::set_size() height > KWINDOW_MAX_HEIGHT should gives OlympusError::KWindowSizeError.
-/// V6 | KWindow::set_size() set the new size without errors.
-/// V7 | KWindow::get_size() returns the new size.
 fn kwindow_x11_size() {
     kwindow_x11_prepare!(wx11, dispatcher, receiver, {
         // V1 | KWindow::get_size() returns the default size.
         let size = wx11.get_size();
         assert_eq!(size.0, KWINDOW_WIDTH, "Width expect {} and not {}!", KWINDOW_WIDTH, size.0);
         assert_eq!(size.1, KWINDOW_HEIGHT, "Height expect {} and not {}!", KWINDOW_HEIGHT, size.1);
-
-        /*
-        if let Err(OlympusError::KWindow(KWindowError::SizeError))  = wx11.set_size((KWINDOW_MIN_WIDTH - 1, KWINDOW_HEIGHT))  {
-            println!("aaa");
-            
-        } else {
-
-        }
-        */
-
-        // V2 | KWindow::set_size() width < KWINDOW_MIN_WIDTH should gives OlympusError::KWindowSizeError.
-        assert_err!(wx11.set_size((KWINDOW_MIN_WIDTH - 1, KWINDOW_HEIGHT)), OlympusError::KWindow(KWindowError::SizeError));
-
-        // V3 | KWindow::set_size() width > KWINDOW_MAX_WIDTH should gives OlympusError::KWindowSizeError.
-        assert_err!(wx11.set_size((KWINDOW_MAX_WIDTH + 1, KWINDOW_HEIGHT)), OlympusError::KWindow(KWindowError::SizeError));
-
-        // V4 | KWindow::set_size() height < KWINDOW_MIN_HEIGHT should gives OlympusError::KWindowSizeError.
-        assert_err!(wx11.set_size((KWINDOW_WIDTH, KWINDOW_MIN_HEIGHT - 1)), OlympusError::KWindow(KWindowError::SizeError));
-
-        // V5 | KWindow::set_size() height > KWINDOW_MAX_HEIGHT should gives OlympusError::KWindowSizeError.
-        assert_err!(wx11.set_size((KWINDOW_WIDTH, KWINDOW_MAX_HEIGHT + 1)), OlympusError::KWindow(KWindowError::SizeError));
-
-        // V6 | KWindow::set_size() set the new size without errors.
-        assert_ok!(wx11.set_size((KWINDOW_WIDTH / 2, KWINDOW_HEIGHT / 2)));
-
-        // V7 | KWindow::get_size() returns the new size.
-        let size = wx11.get_size();
-        assert_eq!(size.0, KWINDOW_WIDTH / 2, "Width expect {} and not {}!", KWINDOW_WIDTH / 2, size.0);
-        assert_eq!(size.1, KWINDOW_HEIGHT / 2, "Height expect {} and not {}!", KWINDOW_HEIGHT / 2, size.1);
     });
 }
 
@@ -331,71 +264,7 @@ fn kwindow_x11_title() {
         assert_eq!(wx11.get_title(), KWINDOW_TITLE, "Title expect {:?} and not {:?}!", KWINDOW_TITLE, wx11.get_title());
     });
 }
-/*
-#[test]
-#[ignore = "User interaction"]
-/// Bind and unbind X11 KWindow cursor.
-/// 
-/// # Verification(s)
-/// V1 | KWindow::is_cursor_confined() returns false as it is not binded by default.
-/// V2 | KWindow::bind_cursor() work without error and cursor stay in boundaries.
-/// V3 | KWindow::is_cursor_confined() returns true as it is now binded.
-/// V4 | KWindow::unbind_cursor() work without error and cursor can exit boundaries.
-/// V5 | KWindow::is_cursor_confined() returns false as it is now unbinded.
-fn kwindow_x11_bind_unbind_cursor() {
-    kwindow_x11_prepare!(wx11, dispatcher, receiver, {
-        // V1 | KWindow::is_cursor_confined() returns false as it is not binded by default.
-        assert!(!wx11.is_cursor_confined(), "Cursor should not be binded by default!");
 
-        // V2 | KWindow::bind_cursor() work without error and cursor stay in boundaries.
-        wx11.confine_cursor();
-
-        // V3 | KWindow::is_cursor_confined() returns true as it is now binded.
-        assert!(wx11.is_cursor_confined(), "Cursor should be binded!");
-
-        // User review if cursor is really binded
-        kwindow_x11_step_loop!(wx11, dispatcher, receiver);
-
-        // V4 | KWindow::unbind_cursor() work without error and cursor can exit boundaries.
-        wx11.release_cursor();
-
-        // V5 | KWindow::is_cursor_confined() returns false as it is now unbinded.
-        assert!(!wx11.is_cursor_confined(), "Cursor should not be binded anymore!");
-    });
-}
-
-#[test]
-#[ignore = "User interaction"]
-/// Hide and show X11 KWindow cursor.
-/// 
-/// # Verification(s)
-/// V1 | KWindow::is_cursor_hidden() returns false as it is visible by default.
-/// V2 | KWindow::hide_cursor() work without error and cursor is hidden.
-/// V3 | KWindow::is_cursor_hidden() returns true as it is now hidden.
-/// V4 | KWindow::show_cursor() work without error and cursor is now visible.
-/// V5 | KWindow::is_cursor_hidden() returns false as it is now visible.
-fn kwindow_x11_hide_show_cursor() {
-    kwindow_x11_prepare!(wx11, dispatcher, receiver, {
-        // V1 | KWindow::is_cursor_hidden() returns false as it is visible by default.
-        assert!(!wx11.is_cursor_hidden(), "Cursor should not be hidden by default!");
-
-        // V2 | KWindow::hide_cursor() work without error and cursor is hidden.
-        wx11.hide_cursor();
-
-        // V3 | KWindow::is_cursor_hidden() returns true as it is now hidden.
-        assert!(wx11.is_cursor_hidden(), "Cursor should now be hidden!");
-
-        // User review if cursor is really hidden
-        kwindow_x11_step_loop!(wx11, dispatcher, receiver);
-
-        // V4 | KWindow::show_cursor() work without error and cursor is now visible.
-        wx11.show_cursor();
-
-        // V5 | KWindow::is_cursor_hidden() returns false as it is now visible.
-        assert!(!wx11.is_cursor_hidden(), "Cursor should now be visible!");
-    });
-}
-*/
 #[test]
 #[ignore = "User interaction"]
 /// Minimize, Maximize, Fullscreen and restore X11 KWindow test.

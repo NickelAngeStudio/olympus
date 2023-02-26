@@ -1,5 +1,7 @@
 use crate::error::{OlympusError, KWindowError};
 
+use self::x11::{attributes::XWindowAttributes, bind::XGetWindowAttributes};
+
 use super::{ event::KEvent, KWindow, screen::KScreenList, KCursorProperty, KWindowProperty };
 use server::KLinuxDisplayServerProvider;
 
@@ -41,8 +43,20 @@ impl KWindow {
             Ok(display_server) => {
                 match KScreenList::new(display_server.provider){
                     Ok(screen_list) => {
-                        let property = KWindowProperty { title : String::from(""), cursor, position: (0,0), size: (width, height), center, minimized: false, maximized: false, fullscreen: false };
-                        let mut kwindow = KWindow { screen_list, property, display_server };
+                        let mut property = KWindowProperty { title : String::from(""), cursor, position: (0,0), size: (width, height), center, minimized: false, maximized: false, fullscreen: false };
+                        match display_server.provider {     // Fetch window position according to provider
+                            KLinuxDisplayServerProvider::Wayland => todo!(),
+                            KLinuxDisplayServerProvider::X11 => {
+                                unsafe {
+                                    let mut w_attr = XWindowAttributes::new();
+                                    XGetWindowAttributes(display_server.display, display_server.window, &mut w_attr);
+                                    property.position = (w_attr.x, w_attr.y);
+                                }
+                            },
+                            _ => {},
+                        }
+
+                        let kwindow = KWindow { screen_list, property, display_server };
                         Ok(kwindow)
                     },
                     Err(_) => Err(OlympusError::KWindow(KWindowError::ScreenDetailError)),
@@ -52,16 +66,6 @@ impl KWindow {
         }  
     }
         
-    // Get cursor position
-    #[inline(always)]
-    pub(super) fn __get_cursor_position(&self) -> (i32, i32){
-        wayland_or_x11!{self.display_server.provider, { 
-                self.wayland_get_cursor_position() 
-            }, { 
-                self.x11_get_cursor_position() 
-            }
-        }
-    }
 
     // Pop an event from the queue
     #[inline(always)]
@@ -178,30 +182,6 @@ impl KWindow {
             
             }, { 
                 self.x11_set_title();
-            }
-        }
-    }
-
-    /// Set position of [KWindow] according to position (x,y).
-    #[inline(always)]
-    pub(super) fn __set_position(&mut self){
-        wayland_or_x11!{self.display_server.provider, { 
-            self.wayland_set_position();
-            
-            }, { 
-                self.x11_set_position();
-            }
-        }
-    }
-
-    /// Set dimension of [KWindow] according to size (width, height).
-    #[inline(always)]
-    pub(super) fn __set_size(&mut self) {
-        wayland_or_x11!{self.display_server.provider, { 
-            self.wayland_set_size();
-            
-            }, { 
-                self.x11_set_size();
             }
         }
     }
