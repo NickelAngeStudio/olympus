@@ -294,7 +294,7 @@ impl KWindow {
     }
 
     /// Set position of [KWindow] according to position (x,y).
-    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "windows", target_os = "macos"))))]
     pub fn set_position(&mut self, position : (i32, i32)){
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         self.property.position = position;
@@ -307,7 +307,7 @@ impl KWindow {
     /// 
     /// # Error(s)
     /// Returns [OlympusError::KWindow(KWindowError::SizeError)] if width and/or height not within allowed boundaries.
-    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "windows", target_os = "macos"))))]
     pub fn set_size(&mut self, dimension : (u32, u32)) -> Result<u8, OlympusError>{
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         // Make sure dimension are within boundaries.
@@ -334,6 +334,7 @@ impl KWindow {
     pub fn set_cursor_position(&mut self, position : (i32, i32)){
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
 
+        self.property.cursor.position = position;
         self.__set_cursor_position(position);   // Private platform inline implementation
     }
 
@@ -399,15 +400,6 @@ impl KWindow {
         
         debug_println!("\x1b[92mKEventWindow::{:?}\x1b[0m", event);
         match event {
-            KEventWindow::Shown() => {
-                false
-            },
-            KEventWindow::Hidden() => {
-                false
-            },
-            KEventWindow::Exposed(position, size) => {
-                false
-            },
             KEventWindow::Moved(position) => {
                 self.property.position = *position;
                 false
@@ -421,18 +413,6 @@ impl KWindow {
                 self.property.position = *position;
                 self.property.size = *size;
                 self.property.center = (self.property.size.0 as i32 / 2, self.property.size.1 as i32 / 2);
-                false
-            },
-            KEventWindow::Minimized() => {
-                false
-            },
-            KEventWindow::Maximized() => {
-                false
-            },
-            KEventWindow::Fullscreen() => {
-                false
-            },
-            KEventWindow::Restored() => {
                 false
             },
             KEventWindow::CursorEnter() => {
@@ -466,6 +446,9 @@ impl KWindow {
             KEventWindow::Close() => {
                 false
             },
+
+            _ => false,
+            
         }
     }
 

@@ -1,6 +1,7 @@
 // Contains bindings for XLib
 use std::os::raw::{c_char, c_int, c_long, c_uint, c_ulong};
 
+use super::attributes::XWindowAttributes;
 use super::{ Display, Window };
 use super::event::{ XEvent, Atom};
 
@@ -130,6 +131,12 @@ extern {
     /// Reference(s)
     /// <https://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html#XFree>
     pub fn XFree(data : *mut c_char);
+
+    /// The XGetWindowAttributes function returns the current attributes for the specified window to an XWindowAttributes structure. 
+    /// 
+    /// Reference(s)
+    /// <https://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html#XGetWindowAttributes>
+    pub(crate) fn XGetWindowAttributes(display : *mut Display, w : *mut Window, window_attributes_return : *mut XWindowAttributes) -> c_int;
 }
 
 // XFixes bindings.

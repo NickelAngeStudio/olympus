@@ -21,13 +21,6 @@ pub mod screen;
 #[doc(hidden)]
 impl KWindow {
 
-    // Get cursor position
-    #[inline(always)]
-    pub(super) fn wayland_get_cursor_position(&self) -> (i32, i32){
-        todo!()
-    }
-
-
     // Pop an event from the queue
     #[inline(always)]
     pub(super) fn wayland_poll_event(&mut self) -> KEvent {
@@ -85,18 +78,6 @@ impl KWindow {
     /// Set a new title for the [KWindow].
     #[inline(always)]
     pub(super) fn wayland_set_title(&mut self) {
-        todo!()
-    }
-
-    /// Set position of [KWindow] according to position (x,y).
-    #[inline(always)]
-    pub(super) fn wayland_set_position(&mut self){
-        todo!()
-    }
-
-    /// Set dimension of [KWindow] according to size (width, height).
-    #[inline(always)]
-    pub(super) fn wayland_set_size(&mut self) {
         todo!()
     }
 
