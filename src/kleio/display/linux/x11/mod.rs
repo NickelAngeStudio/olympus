@@ -1,28 +1,31 @@
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::os::raw::{ c_int, c_long, c_uint, c_ulong, c_char, c_uchar, c_short, c_void };
+use std::panic::resume_unwind;
 use std::ptr::null_mut;
 use std::{panic::catch_unwind};
 use debug_print::debug_println;
 
 
-use crate::kleio::display::linux::x11::bind::{XGetAtomName, XFree};
-use crate::kleio::display::{KWindow, KCursorMode};
+use crate::kleio::display::linux::x11::bind::{XFree, XUnmapWindow, XGetAtomName, XFlush};
+use crate::kleio::display::{KWindow, KCursorMode, KWindowFullscreenMode};
 use crate::kleio::display::event::KEventWindow;
-use crate::kleio::display::linux::x11::constant::GrabModeAsync;
-use crate::kleio::display::{ event::KEventDispatcher };
+use crate::kleio::display::linux::x11::constant::{GrabModeAsync, SubstructureRedirectMask, SubstructureNotifyMask};
 use crate::kleio::display::{linux::x11::{bind::{XDefaultRootWindow, XCreateSimpleWindow, XMapWindow, XSelectInput, XSync, XEventsQueued}, 
     constant::{KeyPressMask, ButtonPressMask, ExposureMask, KeyPress, KeyRelease, ButtonPress, MotionNotify, LeaveNotify, 
     ButtonRelease, EnterNotify, FocusIn, FocusOut, KeymapNotify, Expose, GraphicsExpose, NoExpose, VisibilityNotify, 
     CreateNotify, DestroyNotify, UnmapNotify, MapNotify, MapRequest, ReparentNotify, ConfigureNotify, ConfigureRequest, 
-    GravityNotify, ResizeRequest, CirculateNotify, CirculateRequest, PropertyNotify, SelectionClear, SelectionRequest, SelectionNotify, 
-    ColormapNotify, ClientMessage, MappingNotify, GenericEvent}}, event::KEvent, self, event::KEventMouse, event::KEventKeyboard};
+    GravityNotify, CirculateNotify, CirculateRequest, PropertyNotify, SelectionClear, SelectionRequest, SelectionNotify, 
+    ColormapNotify, ClientMessage, MappingNotify, GenericEvent}}, event::KEvent, event::KEventMouse, event::KEventKeyboard};
 
-use self::bind::{XWarpPointer, XFixesHideCursor, XGrabPointer, XFixesShowCursor, XUngrabPointer, XGetWindowProperty};
-use self::constant::{CurrentTime, VisibilityUnobscured};
-use self::event::Atom;
-use self::{event::{ XEvent }, bind::{XOpenDisplay, XCloseDisplay, XNextEvent}, constant::{KeyReleaseMask, ButtonReleaseMask, LeaveWindowMask, EnterWindowMask, Button1MotionMask, PointerMotionMask, Button3MotionMask, Button2MotionMask, Button5MotionMask, Button4MotionMask, ButtonMotionMask, StructureNotifyMask, ResizeRedirectMask, VisibilityChangeMask, FocusChangeMask, PropertyChangeMask}};
+use self::attributes::{XWindowAttributes};
+use self::bind::{XWarpPointer, XFixesHideCursor, XGrabPointer, XFixesShowCursor, XUngrabPointer, XGetWindowProperty, XStoreName, 
+    XChangeProperty, XGetWindowAttributes, XTranslateCoordinates, 
+    XResizeWindow, XMoveWindow, XSendEvent, XDestroyWindow};
+use self::constant::{CurrentTime, VisibilityUnobscured, PropModeReplace};
+use self::event::{Atom, XClientMessageEvent_data, XClientMessageEvent};
+use self::{ bind::{XOpenDisplay, XCloseDisplay, XNextEvent}, constant::{KeyReleaseMask, ButtonReleaseMask, LeaveWindowMask, EnterWindowMask, Button1MotionMask, PointerMotionMask, Button3MotionMask, Button2MotionMask, Button5MotionMask, Button4MotionMask, ButtonMotionMask, StructureNotifyMask, ResizeRedirectMask, VisibilityChangeMask, FocusChangeMask, PropertyChangeMask}};
 
-use super::server::{ Display, Window };
+use super::server::{ Display, Window, KLinuxDisplayServerX11Property };
 
 /// Contains X11 contants definition
 #[allow(unused)]                    // Remove unused variable notification
@@ -42,6 +45,22 @@ pub mod bind;
 
 /// Contains X11 screen fetch function
 pub mod screen;
+
+
+
+/// Shortcut macro used to change x11 atoms properties
+macro_rules! x11_change_property {
+    ($display:expr, $window:expr, $x11_property:expr, $property:ident $(,$atoms:ident)+) => {
+
+        // Put atoms in 1 array.
+        let atoms_arr = [$($x11_property.$atoms,)+];
+
+        // Push properties change
+        XChangeProperty($display, $window, $x11_property.$property,
+            $x11_property.xa_atom, 32, PropModeReplace, std::mem::transmute(&atoms_arr), atoms_arr.len() as i32);
+    }
+}
+
 
 /// Implementation of privates elements relatives to X11 display server
 #[doc(hidden)]
@@ -77,6 +96,7 @@ impl KWindow {
     pub fn x11_hide_cursor(&mut self) {
         unsafe {
             XFixesHideCursor(self.display_server.display, self.display_server.window);
+            self.display_server.x11_property.x_hide_cursor_flag = true;
         }
     }
 
@@ -84,7 +104,10 @@ impl KWindow {
     #[inline(always)]
     pub fn x11_show_cursor(&mut self) {
         unsafe {
-            XFixesShowCursor(self.display_server.display, self.display_server.window);
+            if self.display_server.x11_property.x_hide_cursor_flag {    // Make sure X hide cursor was called prior to show.
+                XFixesShowCursor(self.display_server.display, self.display_server.window);
+                self.display_server.x11_property.x_hide_cursor_flag = false;
+            }       
         }
     }
 
@@ -108,13 +131,175 @@ impl KWindow {
     /// Set a new title for the [KWindow].
     #[inline(always)]
     pub(super) fn x11_set_title(&mut self) {
-        todo!()
+        unsafe {
+            self.display_server.x11_property.wm_title = CString::from_raw(self.property.title.as_mut_ptr() as *mut i8);
+            XStoreName(self.display_server.display, self.display_server.window, self.display_server.x11_property.wm_title.as_ptr() as *mut i8);
+        }
+    }
+
+    /// Set a size of [KWindow].
+    #[inline(always)]
+    pub(super) fn x11_set_size(&mut self) {
+        unsafe {
+            XResizeWindow(self.display_server.display, self.display_server.window, self.property.size.0, self.property.size.1);
+        }
+    }
+
+    /// Set a position of [KWindow].
+    #[inline(always)]
+    pub(super) fn x11_set_position(&mut self) {
+        unsafe {
+            XMoveWindow(self.display_server.display, self.display_server.window, self.property.position.0, self.property.position.1);
+        }
     }
 
     /// Set the [KWindow] as fullscreen.
+    /// 
+    /// To change the state of a mapped window, a Client MUST send a _NET_WM_STATE client message to the root window: 
+    /// with XSendEvent using XClientMessageEvent.
+    /// 
+    /// Reference(s)
+    /// <https://specifications.freedesktop.org/wm-spec/1.3/ar01s05.html>
     #[inline(always)]
-    pub(super) fn x11_set_fullscreen(&mut self) {
-        todo!()
+    pub(super) fn x11_set_fullscreen(&mut self, mode : KWindowFullscreenMode) {
+        unsafe {
+
+            /*
+            let xwa = Self::get_x11_window_attributes(self.display_server.display, self.display_server.window);
+            match mode {
+                KWindowFullscreenMode::CurrentScreen => {
+
+                },
+                KWindowFullscreenMode::PrimaryScreen => {
+
+                },
+                KWindowFullscreenMode::ExtendedScreen(screen) => {
+
+                },
+                KWindowFullscreenMode::SelectScreen(screen) => {
+
+                },
+            }
+            let screen = self.screen_list.get_primary_screen().unwrap();
+            //XMoveResizeWindow(self.display_server.display, self.display_server.window, -1 * xwa.x, -1 * xwa.y, screen.get_current_resolution().0, 
+            //screen.get_current_resolution().1);
+        
+            //XSetWindowBorderWidth(self.display_server.display, self.display_server.window, 0);
+            
+            // Unmap window
+            XUnmapWindow(self.display_server.display, self.display_server.window);
+            XFlush(self.display_server.display);
+
+            // Change properties
+            x11_change_property!(self.display_server.display, self.display_server.window, self.display_server.x11_property, 
+                _NET_WM_STATE, _NET_WM_STATE_MAXIMIZED_HORZ, _NET_WM_STATE_MAXIMIZED_VERT, _NET_WM_STATE_FULLSCREEN);
+
+            
+
+            // Remap window
+            XMapWindow(self.display_server.display, self.display_server.window);
+            XFlush(self.display_server.display);
+
+            debug_println!("WP = {:?}", self.get_x11_window_states());
+
+                
+            self.x11_sync_events();
+            */
+
+            // To change the state of a mapped window, a Client MUST send a _NET_WM_STATE client message to the root window: 
+            // with XSendEvent using XClientMessageEvent.
+            // Reference
+
+                /*
+                
+            // Message to send via XSendEvent
+            let mut message = XClientMessageEvent { 
+                _type: ClientMessage ,
+                _serial: 0, 
+                _send_event: false, 
+                _display: self.display_server.display, 
+                _window: self.display_server.window as u64, 
+                _message_type: self.display_server.x11_property._NET_WM_STATE, 
+                _format: 32, 
+                _data: XClientMessageEvent_data { _b: [0;20], _s: [0;10], 
+                    _l: [self.display_server.x11_property._NET_WM_STATE_ADD as c_long,
+                        self.display_server.x11_property._NET_WM_STATE_MAXIMIZED_HORZ as c_long, 
+                        self.display_server.x11_property._NET_WM_STATE_MAXIMIZED_VERT as c_long,0,0 ] } };
+
+            debug_println!("MESSAGE BEF={:?}", message);
+
+           let res = XSendEvent(self.display_server.display, XDefaultRootWindow(self.display_server.display), 
+            false, SubstructureRedirectMask | SubstructureNotifyMask, &mut message);
+          
+            debug_println!("RES={}", res);
+
+            let mut message = XClientMessageEvent { 
+                _type: ClientMessage ,
+                _serial: 0, 
+                _send_event: false, 
+                _display: self.display_server.display, 
+                _window: self.display_server.window as u64, 
+                _message_type: self.display_server.x11_property._NET_WM_STATE, 
+                _format: 32, 
+                _data: XClientMessageEvent_data { _b: [0;20], _s: [0;10], 
+                    _l: [self.display_server.x11_property._NET_WM_STATE_ADD as c_long,
+                        self.display_server.x11_property._NET_WM_STATE_FULLSCREEN as c_long, 0,0,0 ] } };
+
+            debug_println!("MESSAGE BEF={:?}", message);
+
+           let res = XSendEvent(self.display_server.display, XDefaultRootWindow(self.display_server.display), 
+            false, SubstructureRedirectMask | SubstructureNotifyMask, &mut message);
+
+
+            XFlush(self.display_server.display);
+
+            debug_println!("MESSAGE AFT={:?}", message);
+
+            debug_println!("RES={}", res);
+            */
+
+            // Destroy current window
+            XDestroyWindow(self.display_server.display, self.display_server.window);
+
+            // Recreate new window as fullscreen
+            self.display_server.window = XCreateSimpleWindow(self.display_server.display, XDefaultRootWindow(self.display_server.display), 0,0,
+                    self.get_size().0, self.get_size().1, 4, 0, 0);
+
+             // Set window Type to normal
+             x11_change_property!(self.display_server.display, self.display_server.window, self.display_server.x11_property, 
+                _NET_WM_WINDOW_TYPE, _NET_WM_WINDOW_TYPE_NORMAL);
+
+             // Allowed actions
+             x11_change_property!(self.display_server.display, self.display_server.window, self.display_server.x11_property, 
+                _NET_WM_ALLOWED_ACTIONS, _NET_WM_ACTION_FULLSCREEN, _NET_WM_ACTION_MINIMIZE, _NET_WM_ACTION_CHANGE_DESKTOP,
+                 _NET_WM_ACTION_CLOSE, _NET_WM_ACTION_ABOVE, _NET_WM_ACTION_BELOW);
+
+            // Set as fullscreen
+            x11_change_property!(self.display_server.display, self.display_server.window, self.display_server.x11_property, 
+                _NET_WM_STATE, _NET_WM_STATE_MAXIMIZED_HORZ, _NET_WM_STATE_MAXIMIZED_VERT, _NET_WM_STATE_FULLSCREEN);
+ 
+            
+             // Map window to display
+             XMapWindow(self.display_server.display, self.display_server.window);
+
+             let mask : i64    = KeyPressMask | KeyReleaseMask |             // Keyboard Button Down and Up
+                                 ButtonPressMask | ButtonReleaseMask |       // Controller button??? TBD 
+                                 EnterWindowMask | LeaveWindowMask |         // Window focus, blur
+                                 PointerMotionMask | Button1MotionMask | 
+                                 Button2MotionMask | Button3MotionMask |
+                                 Button4MotionMask | Button5MotionMask |
+                                 ButtonMotionMask |                          // Mouse motion??? TBD
+                                 StructureNotifyMask | // ResizeRedirectMask |
+                                 VisibilityChangeMask | FocusChangeMask |
+                                 PropertyChangeMask | ExposureMask;                        // Window event I guess??
+ 
+             // Mask of events to receive
+             XSelectInput(self.display_server.display, self.display_server.window, mask);
+
+             XFlush(self.display_server.display);
+            
+            
+        }
     }
         
     /// Get if x11 display server is supported.
@@ -144,18 +329,27 @@ impl KWindow {
         }
     }
 
+
     /// Create connection to X11 and window
     #[inline(always)]
-    pub(super) fn create_x11_window(width:u32, height:u32) -> (*mut Display, *mut Window) {
+    pub(super) fn create_x11_window(width:u32, height:u32) -> (KLinuxDisplayServerX11Property, *mut Display, *mut Window) {
         unsafe {
             // Create display connection
             let display = XOpenDisplay(std::ptr::null());
 
-            // Get windows 
-            
-            // Create window
             let window = XCreateSimpleWindow(display, XDefaultRootWindow(display), 0,0,
                     width as u32, height as u32, 4, 0, 0);
+
+            // Create x11 Properties
+            let x11_prop = KLinuxDisplayServerX11Property::new(display);
+
+            // Set window Type to normal
+            x11_change_property!(display, window, x11_prop, _NET_WM_WINDOW_TYPE, _NET_WM_WINDOW_TYPE_NORMAL);
+
+            // Allowed actions
+            x11_change_property!(display, window, x11_prop, _NET_WM_ALLOWED_ACTIONS, _NET_WM_ACTION_FULLSCREEN, _NET_WM_ACTION_MINIMIZE, _NET_WM_ACTION_CHANGE_DESKTOP,
+                _NET_WM_ACTION_CLOSE, _NET_WM_ACTION_ABOVE, _NET_WM_ACTION_BELOW);
+
 
             // Map window to display
             XMapWindow(display, window);
@@ -175,14 +369,15 @@ impl KWindow {
             XSelectInput(display, window, mask);
 
             
-            // Return display and window pointer
-            (display, window)
+            
+            // Return properties,  display and window pointer
+            (x11_prop, display, window)
         }
     }
 
     /// Restore the [KWindow], undoing any minimized, maximized and/or fullscreen status.
     #[inline(always)]
-    pub fn x11_restore(&mut self) {
+    pub(super) fn x11_restore(&mut self) {
         todo!()
     }
 
@@ -325,6 +520,33 @@ impl KWindow {
         }
     }
 
+    /// Get the real, translated position of KWindow.
+    /// 
+    /// Reference(s)
+    /// <https://stackoverflow.com/questions/3806872/window-position-in-xlib>
+    pub(super) fn get_x11_window_position(display : *mut Display, window: *mut Window) -> (i32, i32){
+        unsafe {
+            let mut x : c_int = 0;
+            let mut y : c_int = 0;
+            let mut child : Window = 0;
+            
+            XTranslateCoordinates(display, window, 
+                XDefaultRootWindow(display), 0, 0, &mut x, &mut y, &mut child );
+            let xwa = Self::get_x11_window_attributes(display, window);
+            (x - xwa.x, y - xwa.y )
+        }
+    }
+
+    /// Get the XWindowAttributes from display connection and window handle.
+    fn get_x11_window_attributes(display : *mut Display, window: *mut Window) -> XWindowAttributes {
+        unsafe {
+            let mut xwa = XWindowAttributes::empty();
+            XGetWindowAttributes( display, window, &mut xwa );
+            debug_println!("XWA={:?}", xwa);
+            xwa
+        }
+    }
+
 
     /// Get X11 window state as a triplet booleans (minimized, maximized, fullscreen).
     /// 
@@ -344,7 +566,7 @@ impl KWindow {
             let mut bytes_after_return : c_ulong = 0; 
             let mut prop_return : *mut c_char = null_mut();
 
-            XGetWindowProperty(self.display_server.display, self.display_server.window, self.display_server.x11_property.wm_state, 
+            XGetWindowProperty(self.display_server.display, self.display_server.window, self.display_server.x11_property._NET_WM_STATE, 
                 0, 1024, false, self.display_server.x11_property.xa_atom, &mut actual_type_return, &mut actual_format_return, 
                 &mut nitems_return, &mut bytes_after_return, &mut prop_return);
             
@@ -358,16 +580,16 @@ impl KWindow {
                         let states: &mut [u8] = core::slice::from_raw_parts_mut(prop_return as *mut u8, nitems_return as usize);
                         for state in states{
                             match *state as Atom {
-                                state if self.display_server.x11_property.wm_state_hidden == state => {
+                                state if self.display_server.x11_property._NET_WM_STATE_HIDDEN == state => {
                                     hidden = true;
                                 },
-                                state if self.display_server.x11_property.wm_state_fullscreen == state => {
+                                state if self.display_server.x11_property._NET_WM_STATE_FULLSCREEN == state => {
                                     fullscreen = true;
                                 },
-                                state if self.display_server.x11_property.wm_state_max_horz == state => {
+                                state if self.display_server.x11_property._NET_WM_STATE_MAXIMIZED_HORZ == state => {
                                     maximized = true;
                                 },
-                                state if self.display_server.x11_property.wm_state_max_vert == state => {
+                                state if self.display_server.x11_property._NET_WM_STATE_MAXIMIZED_VERT == state => {
                                     maximized = true;
                                 },
                                 0 => {},   // Do nothing with 0 atoms
@@ -382,16 +604,16 @@ impl KWindow {
                         let states: &mut [u16] = core::slice::from_raw_parts_mut(prop_return as *mut u16, nitems_return as usize);
                         for state in states{
                             match *state as Atom {
-                                state if self.display_server.x11_property.wm_state_hidden == state => {
+                                state if self.display_server.x11_property._NET_WM_STATE_HIDDEN == state => {
                                     hidden = true;
                                 },
-                                state if self.display_server.x11_property.wm_state_fullscreen == state => {
+                                state if self.display_server.x11_property._NET_WM_STATE_FULLSCREEN == state => {
                                     fullscreen = true;
                                 },
-                                state if self.display_server.x11_property.wm_state_max_horz == state => {
+                                state if self.display_server.x11_property._NET_WM_STATE_MAXIMIZED_HORZ == state => {
                                     maximized = true;
                                 },
-                                state if self.display_server.x11_property.wm_state_max_vert == state => {
+                                state if self.display_server.x11_property._NET_WM_STATE_MAXIMIZED_VERT == state => {
                                     maximized = true;
                                 },
                                 0 => {},   // Do nothing with 0 atoms
@@ -404,22 +626,26 @@ impl KWindow {
                     32 => {
                         // Convert properties to u32
                         let states: &mut [u32] = core::slice::from_raw_parts_mut(prop_return as *mut u32, nitems_return as usize);
+                        debug_println!("States={:?}", states);
                         for state in states{
                             match *state as Atom {
-                                state if self.display_server.x11_property.wm_state_hidden == state => {
+                                state if self.display_server.x11_property._NET_WM_STATE_HIDDEN == state => {
                                     hidden = true;
                                 },
-                                state if self.display_server.x11_property.wm_state_fullscreen == state => {
+                                state if self.display_server.x11_property._NET_WM_STATE_FULLSCREEN == state => {
                                     fullscreen = true;
                                 },
-                                state if self.display_server.x11_property.wm_state_max_horz == state => {
+                                state if self.display_server.x11_property._NET_WM_STATE_MAXIMIZED_HORZ == state => {
                                     maximized = true;
                                 },
-                                state if self.display_server.x11_property.wm_state_max_vert == state => {
+                                state if self.display_server.x11_property._NET_WM_STATE_MAXIMIZED_VERT == state => {
                                     maximized = true;
                                 },
                                 0 => {},   // Do nothing with 0 atoms
-                                _ => { }
+                                // Print unknown state name
+                                state => { 
+                                    debug_println!("State={:?}", CStr::from_ptr(XGetAtomName(self.display_server.display, state)).to_str().unwrap());
+                                }
                             }
                         }
                     },

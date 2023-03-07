@@ -61,7 +61,7 @@ fn kscreen_list_new() {
 /// V2 | KScreenList::get_screen_list().len() > 0.
 /// V3 | KScreenList::get_primary_screen() != None.
 /// V4 | KScreen::get_identifier() is not an empty string.
-/// V5 | KScreen::get_current_width() and get_current_height() > 0.
+/// V5 | KScreen::get_current_resolution() width and height > 0.
 /// V6 | KScreen::get_current_refresh_rate() > 0.
 /// V7 | KScreen::get_supported_resolutions().len() > 0.
 /// V8 | KScreenResolution::get_width() and get_height() > 0.
@@ -86,9 +86,9 @@ fn test_kscreen_list_fields(kl : &KScreenList) {
         // V4 | KScreen::get_identifier() is not an empty string.
         assert_ne!(screen.get_identifier(), "", "Screen identifier must not be an empty string!");
 
-        // V5 | KScreen::get_current_width() and get_current_height() > 0.
-        assert!(screen.get_current_width() > 0, "Current screen width should be > 0!");
-        assert!(screen.get_current_height() > 0, "Current screen height should be > 0!");
+        // V5 | KScreen::get_current_resolution() width and height > 0.
+        assert!(screen.get_current_resolution().0 > 0, "Current screen width should be > 0!");
+        assert!(screen.get_current_resolution().1 > 0, "Current screen height should be > 0!");
 
         // V6 | KScreen::get_current_refresh_rate() > 0.
         assert!(screen.get_current_refresh_rate() > 0, "Current screen refresh rate should be > 0!");
@@ -132,8 +132,9 @@ fn print_screen_list(kl : &KScreenList){
 
 /// Print the screen to console.
 pub fn print_screen(screen : &KScreen) {
-    println!("\nScreen {:?} [{}x{}:{}] primary={}", screen.get_identifier(), screen.get_current_width(), screen.get_current_height(), 
-        screen.get_current_refresh_rate(), screen.is_primary());
+    println!("\nScreen {:?} [{}x{}:{}+{}+{}] primary={}", screen.get_identifier(), screen.get_current_resolution().0, 
+        screen.get_current_resolution().1, screen.get_current_refresh_rate(), screen.get_extended_position().0, 
+        screen.get_extended_position().1, screen.is_primary());
 
     for res in screen.get_supported_resolutions() {
         print_screen_resolution(res);

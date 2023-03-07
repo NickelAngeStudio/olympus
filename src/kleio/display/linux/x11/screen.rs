@@ -12,6 +12,8 @@ struct ScreenDetail {
 
     // Screen details
     pub identifier : String,
+    pub pos_x : i32,
+    pub pos_y : i32,
     pub height : u32,
     pub width : u32,
     pub refresh_rate : u32,
@@ -25,8 +27,9 @@ struct ScreenDetail {
 
 impl ScreenDetail {
     pub fn new() -> ScreenDetail {
-        ScreenDetail { is_resolution_detail : false, desktop_width: 0, desktop_height: 0, identifier: String::from(""), 
-        height: 0, width: 0, refresh_rate: 0, primary: false, resolution: Vec::new(), res_width: 0, res_height: 0 }
+        ScreenDetail { is_resolution_detail : false, desktop_width: 0, desktop_height: 0, pos_x : 0, pos_y : 0,
+            identifier: String::from(""), height: 0, width: 0, refresh_rate: 0, primary: false, resolution: Vec::new(), 
+            res_width: 0, res_height: 0 }
     }
 }
 
@@ -78,7 +81,7 @@ pub(crate) fn get_x11_screen() -> Result<(u32,u32,Vec<KScreen>), KScreenListErro
                     }
                     if sd.is_resolution_detail  {
                         // Section ended, add screen to list
-                        screens.push(KScreen::new( sd.identifier.clone(), sd.height, sd.width, sd.refresh_rate, 
+                        screens.push(KScreen::new( sd.identifier.clone(), (sd.pos_x, sd.pos_y),(sd.width, sd.height), sd.refresh_rate, 
                         sd.primary, sd.resolution.clone() ));
                     }
 
@@ -97,7 +100,7 @@ fn screen_section_end(line_trimmed:&str, screens : &mut Vec<KScreen>, sd: &mut S
         // Scan for section end
         if line_trimmed.contains("connected") {
             // Section ended, add screen to list
-            screens.push(KScreen::new( sd.identifier.clone(), sd.height, sd.width, sd.refresh_rate, 
+            screens.push(KScreen::new( sd.identifier.clone(), (sd.pos_x, sd.pos_y),(sd.width, sd.height), sd.refresh_rate, 
                 sd.primary, sd.resolution.clone() ));
 
             sd.is_resolution_detail = false;
@@ -106,6 +109,8 @@ fn screen_section_end(line_trimmed:&str, screens : &mut Vec<KScreen>, sd: &mut S
 }
 
 /// Scan for connected screens
+/// 
+/// This kind of line : HDMI-0 connected 1920x1080+0+0 (normal left inverted right x axis y axis) 510mm x 290mm
 fn scan_connected_screen(line_trimmed:&str, sd: &mut ScreenDetail) -> Result<u8, KScreenListError>{
     // Scan for connected monitor
     if line_trimmed.contains("connected") && !line_trimmed.contains("disconnected") {
@@ -151,6 +156,7 @@ fn scan_connected_screen(line_trimmed:&str, sd: &mut ScreenDetail) -> Result<u8,
                     Some(h) => {
                         let mut h = h.split("+");
 
+                         // Get height
                         match h.next() {
                             Some(h) => match h.parse::<u32>() {
                                 Ok(h) => sd.height = h,
@@ -159,9 +165,31 @@ fn scan_connected_screen(line_trimmed:&str, sd: &mut ScreenDetail) -> Result<u8,
                             },
                             None => return Err(KScreenListError::FetchScreenListError),
                         }
+
+                        // Get position x
+                        match h.next() {
+                            Some(x) => match x.parse::<i32>() {
+                                Ok(x) => sd.pos_x = x,
+                                // If x conversion error, return error
+                                Err(_) => return Err(KScreenListError::FetchScreenListError),
+                            },
+                            None => return Err(KScreenListError::FetchScreenListError),
+                        }
+
+                        // Get position y
+                        match h.next() {
+                            Some(y) => match y.parse::<i32>() {
+                                Ok(y) => sd.pos_y = y,
+                                // If y conversion error, return error
+                                Err(_) => return Err(KScreenListError::FetchScreenListError),
+                            },
+                            None => return Err(KScreenListError::FetchScreenListError),
+                        }
                     },
                     None => return Err(KScreenListError::FetchScreenListError),
                 }
+
+                
             },
             // If no resolution, return error
             None => return Err(KScreenListError::FetchScreenListError),

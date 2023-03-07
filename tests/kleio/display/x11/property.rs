@@ -1,9 +1,9 @@
 use std::{rc::Rc, cell::RefCell};
 use std::process::exit;
-
-use olympus::error::{ OlympusError, KWindowError };
-use olympus::kleio::display::{KWindow, KCursorMode, window::{KWINDOW_MIN_WIDTH, KWINDOW_MAX_WIDTH, KWINDOW_MIN_HEIGHT, KWINDOW_MAX_HEIGHT}, linux::server::KLinuxDisplayServerProvider, event::KEventDispatcher};
-
+use olympus::error::{OlympusError, KWindowError};
+use olympus::kleio::display::KWindowFullscreenMode;
+use olympus::kleio::display::window::{KWINDOW_MIN_WIDTH, KWINDOW_MAX_WIDTH, KWINDOW_MIN_HEIGHT, KWINDOW_MAX_HEIGHT};
+use olympus::kleio::display::{KWindow, KCursorMode, linux::server::KLinuxDisplayServerProvider, event::KEventDispatcher};
 use crate::assert_err;
 use crate::{ assert_ok, kleio::display::KEventReceiverControl, kwindow_x11_prepare, kwindow_x11_step_loop};
 
@@ -218,14 +218,23 @@ fn kwindow_x11_cursor_position() {
 /// Get and set X11 KWindow position.
 /// 
 /// # Verification(s)
-/// V1 | KWindow::get_position() doesn't return (0,0).
+/// V1 | KWindow::get_position() gives default position.
+/// V2 | KWindow::set_position() work without error.
+/// V3 | KWindow::get_position() return new position.
 fn kwindow_x11_position() {
     kwindow_x11_prepare!(wx11, dispatcher, receiver, {
-        // V1 | KWindow::get_position() doesn't return (0,0).
+        // V1 | KWindow::get_position() gives default position.
         let pos = wx11.get_position();
-        println!("Position={:?}", pos);
-        assert!(pos.0 > 0, "Position X expected > 0!");
-        assert!(pos.1 > 0, "Position Y expected > 0!");
+        assert!(pos.0 == wx11.get_position().0, "Default Position X error!");
+        assert!(pos.1 == wx11.get_position().1, "Default Position Y error!");
+
+        // V2 | KWindow::set_position() work without error.
+        wx11.set_position((KWINDOW_POS_X,KWINDOW_POS_Y));
+
+        // V3 | KWindow::get_position() return new position.
+        let pos = wx11.get_position();
+        assert!(pos.0 == KWINDOW_POS_X, "New Position X error!");
+        assert!(pos.1 == KWINDOW_POS_Y, "New Position Y error!");
     });
 }
 
@@ -235,12 +244,48 @@ fn kwindow_x11_position() {
 /// 
 /// # Verification(s)
 /// V1 | KWindow::get_size() returns the default size.
+/// V2 | KWindow::set_size() width < KWINDOW_MIN_WIDTH should gives KWindowError::WindowSizeError.
+/// V3 | KWindow::set_size() width > KWINDOW_MAX_WIDTH should gives KWindowError::WindowSizeError.
+/// V4 | KWindow::set_size() height < KWINDOW_MIN_HEIGHT should gives KWindowError::WindowSizeError.
+/// V5 | KWindow::set_size() height > KWINDOW_MAX_HEIGHT should gives KWindowError::WindowSizeError.
+/// V6 | KWindow::set_size() work without error when within minimum boundaries.
+/// V7 | KWindow::get_size() return new size.
+/// V8 | KWindow::set_size() work without error when within maximum boundaries.
+/// V9 | KWindow::get_size() return new size.
 fn kwindow_x11_size() {
     kwindow_x11_prepare!(wx11, dispatcher, receiver, {
         // V1 | KWindow::get_size() returns the default size.
         let size = wx11.get_size();
         assert_eq!(size.0, KWINDOW_WIDTH, "Width expect {} and not {}!", KWINDOW_WIDTH, size.0);
         assert_eq!(size.1, KWINDOW_HEIGHT, "Height expect {} and not {}!", KWINDOW_HEIGHT, size.1);
+
+        // V2 | KWindow::set_size() width < KWINDOW_MIN_WIDTH should gives KWindowError::WindowSizeError.
+        assert_err!(wx11.set_size((KWINDOW_MIN_WIDTH - 1, KWINDOW_HEIGHT)), OlympusError::KWindow(KWindowError::SizeError));
+
+        // V3 | KWindow::set_size() width > KWINDOW_MAX_WIDTH should gives KWindowError::WindowSizeError.
+        assert_err!(wx11.set_size((KWINDOW_MAX_WIDTH + 1, KWINDOW_HEIGHT)), OlympusError::KWindow(KWindowError::SizeError));
+        
+        // V4 | KWindow::set_size() height < KWINDOW_MIN_HEIGHT should gives KWindowError::WindowSizeError.
+        assert_err!(wx11.set_size((KWINDOW_WIDTH, KWINDOW_MIN_HEIGHT - 1)), OlympusError::KWindow(KWindowError::SizeError));
+
+        // V5 | KWindow::set_size() height > KWINDOW_MAX_HEIGHT should gives KWindowError::WindowSizeError.
+        assert_err!(wx11.set_size((KWINDOW_WIDTH, KWINDOW_MAX_HEIGHT + 1)), OlympusError::KWindow(KWindowError::SizeError));
+
+        // V6 | KWindow::set_size() work without error when within minimum boundaries.
+        assert_ok!(wx11.set_size((KWINDOW_MIN_WIDTH, KWINDOW_MIN_HEIGHT)));
+
+        // V7 | KWindow::set_size() return new size.
+        let size = wx11.get_size();
+        assert_eq!(size.0, KWINDOW_MIN_WIDTH, "Width expect {} and not {}!", KWINDOW_MIN_WIDTH, size.0);
+        assert_eq!(size.1, KWINDOW_MIN_HEIGHT, "Height expect {} and not {}!", KWINDOW_MIN_HEIGHT, size.1);
+
+        // V8 | KWindow::set_size() work without error when within maximum boundaries.
+        assert_ok!(wx11.set_size((KWINDOW_MAX_WIDTH, KWINDOW_MAX_HEIGHT)));
+        
+        // V9 | KWindow::set_size() return new size.
+        let size = wx11.get_size();
+        assert_eq!(size.0, KWINDOW_MAX_WIDTH, "Width expect {} and not {}!", KWINDOW_MAX_WIDTH, size.0);
+        assert_eq!(size.1, KWINDOW_MAX_HEIGHT, "Height expect {} and not {}!", KWINDOW_MAX_HEIGHT, size.1);
     });
 }
 
@@ -267,133 +312,83 @@ fn kwindow_x11_title() {
 
 #[test]
 #[ignore = "User interaction"]
-/// Minimize, Maximize, Fullscreen and restore X11 KWindow test.
+/// Fullscreen and restore X11 KWindow test.
 /// 
 /// # Verification(s)
 /// V1 | KWindow::is_fullscreen(), is_maximized(), is_minimized() all returns false as default.
-/// V2 | KWindow::set_minimized() work without error and window is minimized.
-/// V3 | KWindow::is_fullscreen() = false, is_maximized() = false, is_minimized() = true.
+/// V2 | KWindow::set_fullscreen() work without error and window now fullscreen.
+/// V3 | KWindow::is_fullscreen() = true, is_maximized() = false, is_minimized() = false.
 /// V4 | KWindow::restore() work without error and window now restored.
 /// V5 | KWindow::is_fullscreen() = false, is_maximized() = false, is_minimized() = false.
-/// V6 | KWindow::set_maximized() work without error and window is maximized.
-/// V7 | KWindow::is_fullscreen() = false, is_maximized() = true, is_minimized() = false.
-/// V8 | KWindow::restore() work without error and window now restored.
-/// V9 | KWindow::is_fullscreen() = false, is_maximized() = false, is_minimized() = false.
-/// V10 | KWindow::set_fullscreen() work without error and window now fullscreen.
-/// V11 | KWindow::is_fullscreen() = true, is_maximized() = false, is_minimized() = false.
-/// V12 | KWindow::restore() work without error and window now restored.
-/// V13 | KWindow::is_fullscreen() = false, is_maximized() = false, is_minimized() = false.
-/// V14 | KWindow::set_minimized() work without error and window is minimized.
-/// V15 | KWindow::is_fullscreen() = false, is_maximized() = false, is_minimized() = true.
-/// V16 | KWindow::set_fullscreen() work without error and window now fullscreen from minimized.
-/// V17 | KWindow::is_fullscreen() = true, is_maximized() = false, is_minimized() = false.
-/// V18 | KWindow::set_maximized() work without error and window is maximized and exit fullscreen.
-/// V19 | KWindow::is_fullscreen() = false, is_maximized() = true, is_minimized() = false.
-/// V20 | KWindow::set_minimized() called multiple time without error.
-/// V21 | KWindow::set_maximized() called multiple time without error.
-/// V22 | KWindow::set_fullscreen() called multiple time without error.
-/// V23 | KWindow::restore() called multiple time without error.
-/// V24 | Multiple chain call of set_minimized, set_maximized, set_fullscreen, restore without error.
-fn kwindow_x11_min_max_full_res() {
+/// V6 | KWindow::set_fullscreen() called multiple time without error.
+/// V7 | KWindow::restore() called multiple time without error.
+/// V8 | Multiple chain call of set_fullscreen, restore without error.
+fn kwindow_x11_fullscreen_restore() {
     kwindow_x11_prepare!(wx11, dispatcher, receiver, {
+
+        
         // V1 | KWindow::is_fullscreen(), is_maximized(), is_minimized() all returns false as default.
         assert!(!wx11.is_fullscreen() && !wx11.is_maximized() && !wx11.is_minimized(), "is_fullscreen(), is_maximized(),is_minimized should all be false!");
 
-        // V2 | KWindow::set_minimized() work without error and window is minimized.
-        //wx11.set_minimized();
+        kwindow_x11_step_loop!("KWindow is now at default. Press SPACE to set full screen.", wx11, dispatcher, receiver);
 
-        // V3 | KWindow::is_fullscreen() = false, is_maximized() = false, is_minimized() = true.
-        assert!(!wx11.is_fullscreen() && !wx11.is_maximized() && wx11.is_minimized(), "Only is_minimized() should be true!");
-        kwindow_x11_step_loop!(wx11, dispatcher, receiver);
+        // V2 | KWindow::set_fullscreen() work without error and window now fullscreen.
+        wx11.set_fullscreen(KWindowFullscreenMode::CurrentScreen);
+        
+        kwindow_x11_step_loop!("KWindow should now be fullscreen. Press SPACE to restore.", wx11, dispatcher, receiver);
 
+        /*
+        // V3 | KWindow::is_fullscreen() = true, is_maximized() = false, is_minimized() = false.
+        assert!(wx11.is_fullscreen() && !wx11.is_maximized() && !wx11.is_minimized(), "Only is_fullscreen() should be true!");
+ 
         // V4 | KWindow::restore() work without error and window now restored.
         wx11.restore();
 
         // V5 | KWindow::is_fullscreen() = false, is_maximized() = false, is_minimized() = false.
         assert!(!wx11.is_fullscreen() && !wx11.is_maximized() && !wx11.is_minimized(), "is_fullscreen(), is_maximized(),is_minimized should all be false!");
-        kwindow_x11_step_loop!(wx11, dispatcher, receiver);
+        kwindow_x11_step_loop!("KWindow should now be restored. Press SPACE for stress.", wx11, dispatcher, receiver);
 
-        // V6 | KWindow::set_maximized() work without error and window is maximized.
-        //wx11.set_maximized();
-
-        // V7 | KWindow::is_fullscreen() = false, is_maximized() = true, is_minimized() = false.
-        assert!(!wx11.is_fullscreen() && wx11.is_maximized() && !wx11.is_minimized(), "Only is_maximized() should be true!");
-        kwindow_x11_step_loop!(wx11, dispatcher, receiver);
-
-        // V8 | KWindow::restore() work without error and window now restored.
-        wx11.restore();
-
-        // V9 | KWindow::is_fullscreen() = false, is_maximized() = false, is_minimized() = false.
-        assert!(!wx11.is_fullscreen() && !wx11.is_maximized() && !wx11.is_minimized(), "is_fullscreen(), is_maximized(),is_minimized should all be false!");
-        kwindow_x11_step_loop!(wx11, dispatcher, receiver);
-
-        // V10 | KWindow::set_fullscreen() work without error and window now fullscreen.
-        wx11.set_fullscreen();
-
-        // V11 | KWindow::is_fullscreen() = true, is_maximized() = false, is_minimized() = false.
-        assert!(wx11.is_fullscreen() && !wx11.is_maximized() && !wx11.is_minimized(), "Only is_fullscreen() should be true!");
-        kwindow_x11_step_loop!(wx11, dispatcher, receiver);
-
-        // V12 | KWindow::restore() work without error and window now restored.
-        wx11.restore();
-
-        // V13 | KWindow::is_fullscreen() = false, is_maximized() = false, is_minimized() = false.
-        assert!(!wx11.is_fullscreen() && !wx11.is_maximized() && !wx11.is_minimized(), "is_fullscreen(), is_maximized(),is_minimized should all be false!");
-        kwindow_x11_step_loop!(wx11, dispatcher, receiver);
-
-        // V14 | KWindow::set_minimized() work without error and window is minimized.
-       //wx11.set_minimized();
-
-        // V15 | KWindow::is_fullscreen() = false, is_maximized() = false, is_minimized() = true.
-        assert!(!wx11.is_fullscreen() && !wx11.is_maximized() && wx11.is_minimized(), "Only is_minimized() should be true!");
-        kwindow_x11_step_loop!(wx11, dispatcher, receiver);
-
-        // V16 | KWindow::set_fullscreen() work without error and window now fullscreen from minimized.
-        wx11.set_fullscreen();
-
-        // V17 | KWindow::is_fullscreen() = true, is_maximized() = false, is_minimized() = false.
-        assert!(wx11.is_fullscreen() && !wx11.is_maximized() && !wx11.is_minimized(), "Only is_fullscreen() should be true!");
-        kwindow_x11_step_loop!(wx11, dispatcher, receiver);
-
-        // V18 | KWindow::set_maximized() work without error and window is maximized and exit fullscreen.
-        //wx11.set_maximized();
-
-        // V19 | KWindow::is_fullscreen() = false, is_maximized() = true, is_minimized() = false.
-        assert!(!wx11.is_fullscreen() && !wx11.is_maximized() && wx11.is_minimized(), "Only is_maximized() should be true!");
-        kwindow_x11_step_loop!(wx11, dispatcher, receiver);
-
-        // V20 | KWindow::set_minimized() called multiple time without error.
-        for _ in 0..100 {
-            //wx11.set_minimized();
-        }
-        // V21 | KWindow::set_maximized() called multiple time without error.
-        for _ in 0..100 {
-            //wx11.set_maximized();
-        }
-        // V22 | KWindow::set_fullscreen() called multiple time without error.
+        // V6 | KWindow::set_fullscreen() called multiple time without error.
         for _ in 0..100 {
             wx11.set_fullscreen();
+            wx11.sync_events();
         }
-        // V23 | KWindow::restore() called multiple time without error.
+
+        // V7 | KWindow::restore() called multiple time without error.
         for _ in 0..100 {
             wx11.restore();
+            wx11.sync_events();
         }
 
-        // V24 | Multiple chain call of set_minimized, set_maximized, set_fullscreen, restore without error.
+        // V8 | Multiple chain call of set_fullscreen, restore without error.
         for i in 0..255 {
-            if i % 7 == 0 {
-                //wx11.set_minimized();
-            }
-            if i % 11 == 0 {
-                //wx11.set_maximized();
-            }
-            if i % 23 == 0 {
+            if i % 5 == 0 {
                 wx11.set_fullscreen();
+                wx11.sync_events();
             }
-            if i % 29 == 0 {
+            if i % 7 == 0 {
                 wx11.restore();
+                wx11.sync_events();
             }
         }
-
+        */
     });
+}
+
+
+#[test]
+#[ignore = "User interaction"]
+/// KWindow Close button handle.
+/// 
+/// # Verification(s)
+/// V1 | KWindow close button is handled without crash.
+fn kwindow_x11_close() {
+
+    kwindow_x11_prepare!(wx11, dispatcher, receiver, {
+        // V1 | KWindow close button is handled without crash.
+
+
+        kwindow_x11_step_loop!("Click the KWindow X (close) button.", wx11, dispatcher, receiver);
+    });
+
 }

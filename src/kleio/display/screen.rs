@@ -90,11 +90,11 @@ pub struct KScreen {
     /// Identifier of that screen
     identifier : String,
 
-    /// Current width resolution of that screen
-    width : u32,
+    /// Current position of that screen on extended desktop
+    position : (i32, i32),
 
-    /// Current height resolution of that screen
-    height : u32,
+    /// Current resolution of that screen as (width, height)
+    resolution : (u32, u32),
 
     /// Current refresh rate of that screen
     refresh_rate : u32,
@@ -103,13 +103,13 @@ pub struct KScreen {
     primary : bool,
 
     /// Supported resolutions
-    resolution : Vec<KScreenResolution>,
+    supported : Vec<KScreenResolution>,
 }
 
 impl KScreen {
     /// Create a new [KScreen] with fields.
-    pub fn new(identifier : String, height : u32, width : u32, refresh_rate : u32, primary : bool, resolution : Vec<KScreenResolution>) -> KScreen{
-        KScreen { identifier, height, width, refresh_rate, primary, resolution }
+    pub fn new(identifier : String, position : (i32,i32), resolution : (u32, u32), refresh_rate : u32, primary : bool, supported : Vec<KScreenResolution>) -> KScreen{
+        KScreen { identifier, position, resolution, refresh_rate, primary, supported }
     }
 
     /// Returns screen unique identifier as [String].
@@ -117,14 +117,14 @@ impl KScreen {
         &self.identifier
     }
 
-    /// Returns current width resolution of screen.
-    pub fn get_current_width(&self) -> u32 {
-        self.width
+    /// Returns current resolution of screen as (width, height)
+    pub fn get_current_resolution(&self) -> (u32, u32) {
+        self.resolution
     }
 
-    /// Returns current height resolution of screen.
-    pub fn get_current_height(&self) -> u32 {
-        self.height
+    /// Returns extended position of screen in extended desktop as (x, y)
+    pub fn get_extended_position(&self) -> (i32, i32) {
+        self.position
     }
 
     /// Returns current refresh rate of screen.
@@ -142,7 +142,7 @@ impl KScreen {
 
     /// Returns list of supported resolutions and refresh rates.
     pub fn get_supported_resolutions(&self) -> &Vec<KScreenResolution>{
-        &self.resolution
+        &self.supported
     }
 }
 

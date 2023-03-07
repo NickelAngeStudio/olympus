@@ -1,4 +1,4 @@
-use std::{os::raw::{ c_char, c_ulong }, ffi::{CString, NulError}};
+use std::{os::raw::{ c_char, c_ulong }, ffi::{CString}};
 use debug_print::debug_println;
 
 use crate::{kleio::display::{KWindow}, wayland_or_x11, error::{OlympusError, KWindowError}};
@@ -11,18 +11,17 @@ pub type Window = c_ulong;
 /// Type used for display server connection pointer. 
 pub type Display = c_ulong;
 
-/// Used to query WMState atom
-const  WM_STATE_NAME : &str = "_NET_WM_STATE";
+/// Type used for pix map
+pub type Pixmap = c_ulong;
 
-/// Used to query maximized properties
-const  WM_STATE_MAX_VERT_NAME: &str = "_NET_WM_STATE_MAXIMIZED_VERT";
-const  WM_STATE_MAX_HORZ_NAME : &str = "_NET_WM_STATE_MAXIMIZED_HORZ";
+/// XPointer type
+pub type XPointer = *mut c_char;
 
-/// Used to query minimized property
-const  WM_STATE_HIDDEN_NAME : &str = "_NET_WM_STATE_HIDDEN";
+/// Visual ID type
+pub type VisualID = c_ulong;
 
-/// Used to quere fullscreen property
-const  WM_STATE_FULLSCREEN_NAME : &str = "_NET_WM_STATE_FULLSCREEN";
+/// Cursor type
+pub type Cursor = c_ulong;
 
 
 /// Enumeration of linux display server provider.
@@ -63,70 +62,6 @@ pub struct KLinuxDisplayServer {
 
 }
 
-impl Drop for KLinuxDisplayServer {
-    fn drop(&mut self) {
-        wayland_or_x11!{self.provider, {
-            todo!()
-        } , {
-            unsafe {
-                // Close display server connection.
-                XCloseDisplay(self.display);
-            }
-        }}
-    }
-}
-
-/// Contains X11 only display server properties
-pub struct KLinuxDisplayServerX11Property {
-    /// Used to fetch X11 events
-    pub(crate) x_event : XEvent,    
-
-    /// Used to query window properties
-    pub(crate) wm_state : Atom,
-
-    /// Used to query maximized properties
-    pub(crate) wm_state_max_vert : Atom,
-
-    /// Used to query maximized properties
-    pub(crate) wm_state_max_horz : Atom,
-
-    /// Used to query minimized property
-    pub(crate) wm_state_hidden : Atom,
-
-    /// Used to query fullscreen property
-    pub(crate) wm_state_fullscreen : Atom,
-
-    /// Used to query atom type
-    pub(crate) xa_atom : Atom,
-}
-
-impl KLinuxDisplayServerX11Property{
-    /// Fetch atoms value with display
-    pub fn new(display : *mut u64) -> KLinuxDisplayServerX11Property {
-        #[allow(temporary_cstring_as_ptr)]
-        unsafe {
-            // Query states atoms
-            let wm_state = XInternAtom(display, CString::new(WM_STATE_NAME).unwrap().as_ptr(), false);
-            let wm_state_max_vert = XInternAtom(display, CString::new(WM_STATE_MAX_VERT_NAME).unwrap().as_ptr(), false);
-            let wm_state_max_horz = XInternAtom(display, CString::new(WM_STATE_MAX_HORZ_NAME).unwrap().as_ptr(), false);
-            let wm_state_hidden = XInternAtom(display, CString::new(WM_STATE_HIDDEN_NAME).unwrap().as_ptr(), false);
-            let wm_state_fullscreen = XInternAtom(display, CString::new(WM_STATE_FULLSCREEN_NAME).unwrap().as_ptr(), false);
-            let xa_atom = 4;
-
-            debug_println!("wm_state={}, wm_state_max_vert={}, wm_state_max_horz={}, wm_state_hidden={}, wm_state_fullscreen={}, xa_atom={}",
-                wm_state, wm_state_max_vert, wm_state_max_horz, wm_state_hidden, wm_state_fullscreen, xa_atom);
-
-            KLinuxDisplayServerX11Property { x_event : XEvent { _type: 0}, wm_state, wm_state_max_vert, wm_state_max_horz, wm_state_hidden, wm_state_fullscreen, xa_atom }
-        }
-    }
-
-    /// Empty X11 Atoms
-    pub fn empty() -> KLinuxDisplayServerX11Property {
-        KLinuxDisplayServerX11Property { x_event : XEvent { _type: 0}, wm_state: 0, wm_state_max_vert: 0, wm_state_max_horz: 0, wm_state_hidden: 0, wm_state_fullscreen: 0, xa_atom: 0 }
-    }
-}
-
-
 
 impl KLinuxDisplayServer {
     /// Create a new KLinuxDisplayServer according to provider.
@@ -154,8 +89,8 @@ impl KLinuxDisplayServer {
             KLinuxDisplayServerProvider::X11 => {
                 if KWindow::x11_supported() {
                     let provider = KLinuxDisplayServerProvider::X11;
-                    let dis_win = KWindow::create_x11_window(width, height);
-                    Ok(KLinuxDisplayServer{ provider, x11_property : KLinuxDisplayServerX11Property::new(dis_win.0), display : dis_win.0, window : dis_win.1 })
+                    let prop_dis_win = KWindow::create_x11_window(width, height);
+                    Ok(KLinuxDisplayServer{ provider, x11_property : prop_dis_win.0, display : prop_dis_win.1, window : prop_dis_win.2 })
                 } else {
                     // No x11 support.
                     Err(OlympusError::KWindow(KWindowError::NotSupported))
@@ -165,4 +100,101 @@ impl KLinuxDisplayServer {
 
     }
 
+}
+
+impl Drop for KLinuxDisplayServer {
+    fn drop(&mut self) {
+        wayland_or_x11!{self.provider, {
+            todo!()
+        } , {
+            unsafe {
+                // Close display server connection.
+                XCloseDisplay(self.display);
+            }
+        }}
+    }
+}
+
+
+/// Macro that construct the KLinuxDisplayServerX11Property struct
+macro_rules! x11_server_property {
+    ($atom:ident $(,$atoms:ident)*) => {
+        #[allow(non_snake_case)]
+        pub struct KLinuxDisplayServerX11Property {
+            /// Used to fetch X11 events
+            pub(crate) x_event : XEvent,    
+
+            /// C-compatible string for window title
+            pub(crate) wm_title : CString,
+
+            // Remove/unset property
+            pub(crate) _NET_WM_STATE_REMOVE : Atom,
+
+            // Add/set property
+            pub(crate) _NET_WM_STATE_ADD : Atom,
+
+            // Toggle property
+            pub(crate) _NET_WM_STATE_TOGGLE : Atom,
+
+            // List of atoms to use (Filled with atoms name use when calling x11_server_property! macro)
+            pub(crate) $atom : Atom,
+            $(pub(crate) $atoms : Atom,)*
+
+            /// Used to query atom type
+            pub(crate) xa_atom : Atom,
+
+            /// Flag used to make sure XHideCursor was called prior to XShowCursor to prevent crash
+            pub(crate) x_hide_cursor_flag : bool,
+        }
+
+        impl KLinuxDisplayServerX11Property{
+            /// Fetch atoms value with display
+            pub fn new(display : *mut u64) -> KLinuxDisplayServerX11Property {
+                #[allow(temporary_cstring_as_ptr)]
+                unsafe {        
+                    let x11_prop = KLinuxDisplayServerX11Property { x_event : XEvent { _type: 0}, wm_title : CString::new("").unwrap(),
+                    _NET_WM_STATE_REMOVE : 0, _NET_WM_STATE_ADD : 1, _NET_WM_STATE_TOGGLE : 2,
+                    $atom :  XInternAtom(display, CString::new(stringify!($atom)).unwrap().as_ptr(), true),
+                    $($atoms : XInternAtom(display, CString::new(stringify!($atoms)).unwrap().as_ptr(), true),)*
+                    xa_atom : 4, x_hide_cursor_flag : false };
+
+                    // Make sure that all Atoms have value > 0.
+                    assert_ne!(x11_prop.$atom, 0, "Atom [{}] value must NOT be 0.", stringify!($atom));
+
+                    debug_println!("X11 Properties : {:?}", x11_prop);
+
+                    x11_prop
+                }
+            }
+        
+            /// Empty X11 Atoms
+            pub fn empty() -> KLinuxDisplayServerX11Property {
+                KLinuxDisplayServerX11Property { x_event : XEvent { _type: 0}, wm_title : CString::new("").unwrap(),
+                    _NET_WM_STATE_REMOVE : 0, _NET_WM_STATE_ADD : 1, _NET_WM_STATE_TOGGLE : 2,
+                    $atom :  0,
+                    $($atoms : 0,)*
+                    xa_atom : 4, x_hide_cursor_flag : false }
+            }
+        }
+
+        
+
+    }
+
+
+}
+
+
+
+// Construct KLinuxDisplayServerX11Property with needed atoms 
+x11_server_property!(_NET_WM_STATE, _NET_WM_STATE_MAXIMIZED_VERT, _NET_WM_STATE_MAXIMIZED_HORZ, _NET_WM_STATE_HIDDEN, _NET_WM_STATE_FULLSCREEN,
+    _NET_WM_WINDOW_TYPE, _NET_WM_WINDOW_TYPE_NORMAL, _NET_WM_ALLOWED_ACTIONS, _NET_WM_ACTION_FULLSCREEN,
+    _NET_WM_ACTION_MINIMIZE, _NET_WM_ACTION_CHANGE_DESKTOP, _NET_WM_ACTION_CLOSE, _NET_WM_ACTION_ABOVE, _NET_WM_ACTION_BELOW
+);
+
+
+impl core::fmt::Debug for KLinuxDisplayServerX11Property {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KLinuxDisplayServerX11Property").field("wm_title", &self.wm_title).field("_NET_WM_STATE_REMOVE", &self._NET_WM_STATE_REMOVE).field("_NET_WM_STATE_ADD", &self._NET_WM_STATE_ADD).field("_NET_WM_STATE_TOGGLE", &self._NET_WM_STATE_TOGGLE).field("_NET_WM_STATE", &self._NET_WM_STATE).field("_NET_WM_STATE_MAXIMIZED_VERT", &self._NET_WM_STATE_MAXIMIZED_VERT).field("_NET_WM_STATE_MAXIMIZED_HORZ", &self._NET_WM_STATE_MAXIMIZED_HORZ).field("_NET_WM_STATE_HIDDEN", &self._NET_WM_STATE_HIDDEN).field("_NET_WM_STATE_FULLSCREEN", &self._NET_WM_STATE_FULLSCREEN).field("_NET_WM_WINDOW_TYPE", &self._NET_WM_WINDOW_TYPE).field("_NET_WM_WINDOW_TYPE_NORMAL", &self._NET_WM_WINDOW_TYPE_NORMAL).field("_NET_WM_ALLOWED_ACTIONS", &self._NET_WM_ALLOWED_ACTIONS).field("_NET_WM_ACTION_FULLSCREEN", &self._NET_WM_ACTION_FULLSCREEN).field("_NET_WM_ACTION_MINIMIZE", &self._NET_WM_ACTION_MINIMIZE).field("_NET_WM_ACTION_CHANGE_DESKTOP", &self._NET_WM_ACTION_CHANGE_DESKTOP).field("_NET_WM_ACTION_CLOSE", &self._NET_WM_ACTION_CLOSE).field("_NET_WM_ACTION_ABOVE", &self._NET_WM_ACTION_ABOVE).field("_NET_WM_ACTION_BELOW", &self._NET_WM_ACTION_BELOW).field("xa_atom", &self.xa_atom).field("x_hide_cursor_flag", &self.x_hide_cursor_flag).finish()
+    }
 }
