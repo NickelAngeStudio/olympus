@@ -5,6 +5,7 @@ use crate::error::KWindowError;
 
 use super::{event::{ KEvent, KEventDispatcher}, screen::KScreenList, KWindowProperty};
 use super::{ KCursorMode };
+use super::KWindowFullscreenMode;
 
 #[allow(unused_imports)]
 use super::event::{ KEventMouse, KEventReceiver };
@@ -294,7 +295,7 @@ impl KWindow {
     }
 
     /// Set position of [KWindow] according to position (x,y).
-    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "windows", target_os = "macos"))))]
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
     pub fn set_position(&mut self, position : (i32, i32)){
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         self.property.position = position;
@@ -307,7 +308,7 @@ impl KWindow {
     /// 
     /// # Error(s)
     /// Returns [OlympusError::KWindow(KWindowError::SizeError)] if width and/or height not within allowed boundaries.
-    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "windows", target_os = "macos"))))]
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
     pub fn set_size(&mut self, dimension : (u32, u32)) -> Result<u8, OlympusError>{
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         // Make sure dimension are within boundaries.
@@ -320,12 +321,13 @@ impl KWindow {
         }
     }
 
-    /// Set the [KWindow] as fullscreen.
+    /// Set the [KWindow] as fullscreen according to [KWindowFullscreenMode] parameter.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-    pub fn set_fullscreen(&mut self) {
+    pub fn set_fullscreen(&mut self, mode : KWindowFullscreenMode) {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
+
         if !self.property.fullscreen {
-            self.__set_fullscreen();
+            self.__set_fullscreen(mode);
         }
     }
 

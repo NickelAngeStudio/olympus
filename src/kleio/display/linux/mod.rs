@@ -2,7 +2,8 @@ use crate::error::{OlympusError, KWindowError};
 
 use self::x11::{attributes::XWindowAttributes, bind::XGetWindowAttributes};
 
-use super::{ event::KEvent, KWindow, screen::KScreenList, KCursorProperty, KWindowProperty };
+use super::{ event::KEvent, KWindow, screen::KScreenList, KCursorProperty, KWindowProperty, KWindowFullscreenMode };
+use debug_print::debug_println;
 use server::KLinuxDisplayServerProvider;
 
 /// Wayland KWindowManager
@@ -47,17 +48,12 @@ impl KWindow {
                         match display_server.provider {     // Fetch window position according to provider
                             KLinuxDisplayServerProvider::Wayland => todo!(),
                             KLinuxDisplayServerProvider::X11 => {
-                                unsafe {
-                                    let mut w_attr = XWindowAttributes::new();
-                                    XGetWindowAttributes(display_server.display, display_server.window, &mut w_attr);
-                                    property.position = (w_attr.x, w_attr.y);
-                                }
+                                // Set correct x11 window position
+                                property.position = KWindow::get_x11_window_position(display_server.display, display_server.window);
+                                Ok(KWindow { screen_list, property, display_server })
                             },
-                            _ => {},
+                            _ => Err(OlympusError::KWindow(KWindowError::NoDisplayServer)),
                         }
-
-                        let kwindow = KWindow { screen_list, property, display_server };
-                        Ok(kwindow)
                     },
                     Err(_) => Err(OlympusError::KWindow(KWindowError::ScreenDetailError)),
                 }
@@ -186,14 +182,38 @@ impl KWindow {
         }
     }
 
-    /// Set the [KWindow] as fullscreen.
+    /// Set a size of [KWindow].
     #[inline(always)]
-    pub(super) fn __set_fullscreen(&mut self) {
+    pub(super) fn __set_size(&mut self) {
         wayland_or_x11!{self.display_server.provider, { 
-            self.wayland_set_fullscreen();
+            self.wayland_set_size();
             
             }, { 
-                self.x11_set_fullscreen();
+                self.x11_set_size();
+            }
+        }
+    }
+
+    /// Set a position of [KWindow].
+    #[inline(always)]
+    pub(super) fn __set_position(&mut self) {
+        wayland_or_x11!{self.display_server.provider, { 
+            self.wayland_set_position();
+            
+            }, { 
+                self.x11_set_position();
+            }
+        }
+    }
+
+    /// Set the [KWindow] as fullscreen.
+    #[inline(always)]
+    pub(super) fn __set_fullscreen(&mut self, mode : KWindowFullscreenMode) {
+        wayland_or_x11!{self.display_server.provider, { 
+            self.wayland_set_fullscreen(mode);
+            
+            }, { 
+                self.x11_set_fullscreen(mode);
             }
         }
     }

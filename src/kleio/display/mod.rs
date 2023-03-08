@@ -4,6 +4,7 @@ pub use window::KWindow as KWindow;
 pub use property::KWindowProperty as KWindowProperty;
 pub use property::KCursorMode as KCursorMode;
 pub use property::KCursorProperty as KCursorProperty;
+pub use property::KWindowFullscreenMode as KWindowFullscreenMode;
 
 /// Window and cursor properties.
 #[doc(hidden)]
