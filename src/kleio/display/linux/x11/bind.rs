@@ -1,7 +1,7 @@
 // Contains bindings for XLib
 use std::os::raw::{c_uchar, c_char, c_int, c_long, c_uint, c_ulong, c_void};
 
-use super::attributes::{XWindowAttributes, Visual, XSetWindowAttributes};
+use super::attributes::{XWindowAttributes, Visual, XSetWindowAttributes, Screen};
 use super::{ Display, Window };
 use super::event::{ XEvent, Atom, XClientMessageEvent};
 
@@ -222,6 +222,12 @@ extern {
     /// Reference(s)
     /// <https://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html#XDestroyWindow>
     pub(crate) fn XDestroyWindow(display : *mut Display, w : *mut Window);
+
+    /// Both return a pointer to the indicated screen.
+    /// 
+    /// Reference(s)
+    /// <https://www.x.org/releases/X11R7.7/doc/libX11/libX11/libX11.html#XScreenOfDisplay>
+    pub(crate) fn XScreenOfDisplay(display : *mut Display, screen_number : c_int) -> *const Screen;
     
 }
 

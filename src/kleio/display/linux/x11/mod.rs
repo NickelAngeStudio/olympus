@@ -1,15 +1,14 @@
 use std::ffi::{CStr, CString};
 use std::os::raw::{ c_int, c_long, c_uint, c_ulong, c_char, c_uchar, c_short, c_void };
-use std::panic::resume_unwind;
 use std::ptr::null_mut;
 use std::{panic::catch_unwind};
 use debug_print::debug_println;
 
 
-use crate::kleio::display::linux::x11::bind::{XFree, XUnmapWindow, XGetAtomName, XFlush};
+use crate::kleio::display::linux::x11::bind::{XFree, XGetAtomName, XFlush, XScreenOfDisplay};
 use crate::kleio::display::{KWindow, KCursorMode, KWindowFullscreenMode};
 use crate::kleio::display::event::KEventWindow;
-use crate::kleio::display::linux::x11::constant::{GrabModeAsync, SubstructureRedirectMask, SubstructureNotifyMask};
+use crate::kleio::display::linux::x11::constant::{GrabModeAsync};
 use crate::kleio::display::{linux::x11::{bind::{XDefaultRootWindow, XCreateSimpleWindow, XMapWindow, XSelectInput, XSync, XEventsQueued}, 
     constant::{KeyPressMask, ButtonPressMask, ExposureMask, KeyPress, KeyRelease, ButtonPress, MotionNotify, LeaveNotify, 
     ButtonRelease, EnterNotify, FocusIn, FocusOut, KeymapNotify, Expose, GraphicsExpose, NoExpose, VisibilityNotify, 
@@ -20,9 +19,9 @@ use crate::kleio::display::{linux::x11::{bind::{XDefaultRootWindow, XCreateSimpl
 use self::attributes::{XWindowAttributes};
 use self::bind::{XWarpPointer, XFixesHideCursor, XGrabPointer, XFixesShowCursor, XUngrabPointer, XGetWindowProperty, XStoreName, 
     XChangeProperty, XGetWindowAttributes, XTranslateCoordinates, 
-    XResizeWindow, XMoveWindow, XSendEvent, XDestroyWindow};
+    XResizeWindow, XMoveWindow, XDestroyWindow};
 use self::constant::{CurrentTime, VisibilityUnobscured, PropModeReplace};
-use self::event::{Atom, XClientMessageEvent_data, XClientMessageEvent};
+use self::event::{Atom};
 use self::{ bind::{XOpenDisplay, XCloseDisplay, XNextEvent}, constant::{KeyReleaseMask, ButtonReleaseMask, LeaveWindowMask, EnterWindowMask, Button1MotionMask, PointerMotionMask, Button3MotionMask, Button2MotionMask, Button5MotionMask, Button4MotionMask, ButtonMotionMask, StructureNotifyMask, ResizeRedirectMask, VisibilityChangeMask, FocusChangeMask, PropertyChangeMask}};
 
 use super::server::{ Display, Window, KLinuxDisplayServerX11Property };
@@ -45,6 +44,18 @@ pub mod bind;
 
 /// Contains X11 screen fetch function
 pub mod screen;
+
+/// Event mask used with x11 to capture and dispatch event.
+const EVENT_MASK : i64 =    KeyPressMask | KeyReleaseMask |             // Keyboard Button Down and Up
+                            ButtonPressMask | ButtonReleaseMask |       // Controller button??? TBD 
+                            EnterWindowMask | LeaveWindowMask |         // Window focus, blur
+                            PointerMotionMask | Button1MotionMask | 
+                            Button2MotionMask | Button3MotionMask |
+                            Button4MotionMask | Button5MotionMask |
+                            ButtonMotionMask |                          // Mouse motion??? TBD
+                            StructureNotifyMask |                       // ResizeRedirectMask |
+                            VisibilityChangeMask | FocusChangeMask |
+                            PropertyChangeMask | ExposureMask;          // Window event I guess??
 
 
 
@@ -132,7 +143,7 @@ impl KWindow {
     #[inline(always)]
     pub(super) fn x11_set_title(&mut self) {
         unsafe {
-            self.display_server.x11_property.wm_title = CString::from_raw(self.property.title.as_mut_ptr() as *mut i8);
+            self.display_server.x11_property.wm_title = CString::from_vec_unchecked(self.property.title.as_bytes().to_vec());
             XStoreName(self.display_server.display, self.display_server.window, self.display_server.x11_property.wm_title.as_ptr() as *mut i8);
         }
     }
@@ -180,123 +191,17 @@ impl KWindow {
 
                 },
             }
-            let screen = self.screen_list.get_primary_screen().unwrap();
-            //XMoveResizeWindow(self.display_server.display, self.display_server.window, -1 * xwa.x, -1 * xwa.y, screen.get_current_resolution().0, 
-            //screen.get_current_resolution().1);
-        
-            //XSetWindowBorderWidth(self.display_server.display, self.display_server.window, 0);
-            
-            // Unmap window
-            XUnmapWindow(self.display_server.display, self.display_server.window);
-            XFlush(self.display_server.display);
-
-            // Change properties
-            x11_change_property!(self.display_server.display, self.display_server.window, self.display_server.x11_property, 
-                _NET_WM_STATE, _NET_WM_STATE_MAXIMIZED_HORZ, _NET_WM_STATE_MAXIMIZED_VERT, _NET_WM_STATE_FULLSCREEN);
-
-            
-
-            // Remap window
-            XMapWindow(self.display_server.display, self.display_server.window);
-            XFlush(self.display_server.display);
-
-            debug_println!("WP = {:?}", self.get_x11_window_states());
-
-                
-            self.x11_sync_events();
             */
 
-            // To change the state of a mapped window, a Client MUST send a _NET_WM_STATE client message to the root window: 
-            // with XSendEvent using XClientMessageEvent.
-            // Reference
-
-                /*
-                
-            // Message to send via XSendEvent
-            let mut message = XClientMessageEvent { 
-                _type: ClientMessage ,
-                _serial: 0, 
-                _send_event: false, 
-                _display: self.display_server.display, 
-                _window: self.display_server.window as u64, 
-                _message_type: self.display_server.x11_property._NET_WM_STATE, 
-                _format: 32, 
-                _data: XClientMessageEvent_data { _b: [0;20], _s: [0;10], 
-                    _l: [self.display_server.x11_property._NET_WM_STATE_ADD as c_long,
-                        self.display_server.x11_property._NET_WM_STATE_MAXIMIZED_HORZ as c_long, 
-                        self.display_server.x11_property._NET_WM_STATE_MAXIMIZED_VERT as c_long,0,0 ] } };
-
-            debug_println!("MESSAGE BEF={:?}", message);
-
-           let res = XSendEvent(self.display_server.display, XDefaultRootWindow(self.display_server.display), 
-            false, SubstructureRedirectMask | SubstructureNotifyMask, &mut message);
-          
-            debug_println!("RES={}", res);
-
-            let mut message = XClientMessageEvent { 
-                _type: ClientMessage ,
-                _serial: 0, 
-                _send_event: false, 
-                _display: self.display_server.display, 
-                _window: self.display_server.window as u64, 
-                _message_type: self.display_server.x11_property._NET_WM_STATE, 
-                _format: 32, 
-                _data: XClientMessageEvent_data { _b: [0;20], _s: [0;10], 
-                    _l: [self.display_server.x11_property._NET_WM_STATE_ADD as c_long,
-                        self.display_server.x11_property._NET_WM_STATE_FULLSCREEN as c_long, 0,0,0 ] } };
-
-            debug_println!("MESSAGE BEF={:?}", message);
-
-           let res = XSendEvent(self.display_server.display, XDefaultRootWindow(self.display_server.display), 
-            false, SubstructureRedirectMask | SubstructureNotifyMask, &mut message);
-
-
-            XFlush(self.display_server.display);
-
-            debug_println!("MESSAGE AFT={:?}", message);
-
-            debug_println!("RES={}", res);
-            */
+            // Save window properties for restoration
+            self.display_server.x11_property.restoration_position_size = (self.get_position(), self.get_size());
 
             // Destroy current window
             XDestroyWindow(self.display_server.display, self.display_server.window);
 
-            // Recreate new window as fullscreen
-            self.display_server.window = XCreateSimpleWindow(self.display_server.display, XDefaultRootWindow(self.display_server.display), 0,0,
-                    self.get_size().0, self.get_size().1, 4, 0, 0);
-
-             // Set window Type to normal
-             x11_change_property!(self.display_server.display, self.display_server.window, self.display_server.x11_property, 
-                _NET_WM_WINDOW_TYPE, _NET_WM_WINDOW_TYPE_NORMAL);
-
-             // Allowed actions
-             x11_change_property!(self.display_server.display, self.display_server.window, self.display_server.x11_property, 
-                _NET_WM_ALLOWED_ACTIONS, _NET_WM_ACTION_FULLSCREEN, _NET_WM_ACTION_MINIMIZE, _NET_WM_ACTION_CHANGE_DESKTOP,
-                 _NET_WM_ACTION_CLOSE, _NET_WM_ACTION_ABOVE, _NET_WM_ACTION_BELOW);
-
-            // Set as fullscreen
-            x11_change_property!(self.display_server.display, self.display_server.window, self.display_server.x11_property, 
-                _NET_WM_STATE, _NET_WM_STATE_MAXIMIZED_HORZ, _NET_WM_STATE_MAXIMIZED_VERT, _NET_WM_STATE_FULLSCREEN);
- 
-            
-             // Map window to display
-             XMapWindow(self.display_server.display, self.display_server.window);
-
-             let mask : i64    = KeyPressMask | KeyReleaseMask |             // Keyboard Button Down and Up
-                                 ButtonPressMask | ButtonReleaseMask |       // Controller button??? TBD 
-                                 EnterWindowMask | LeaveWindowMask |         // Window focus, blur
-                                 PointerMotionMask | Button1MotionMask | 
-                                 Button2MotionMask | Button3MotionMask |
-                                 Button4MotionMask | Button5MotionMask |
-                                 ButtonMotionMask |                          // Mouse motion??? TBD
-                                 StructureNotifyMask | // ResizeRedirectMask |
-                                 VisibilityChangeMask | FocusChangeMask |
-                                 PropertyChangeMask | ExposureMask;                        // Window event I guess??
- 
-             // Mask of events to receive
-             XSelectInput(self.display_server.display, self.display_server.window, mask);
-
-             XFlush(self.display_server.display);
+            // Recreate window as fullscreen
+            self.display_server.window = KWindow::create_x11_window(self.display_server.display, &self.display_server.x11_property, (0,0),
+                self.screen_list.get_primary_screen().unwrap().get_current_resolution(), true);           
             
             
         }
@@ -329,19 +234,28 @@ impl KWindow {
         }
     }
 
-
-    /// Create connection to X11 and window
+    /// Create connection to X11 display server
     #[inline(always)]
-    pub(super) fn create_x11_window(width:u32, height:u32) -> (KLinuxDisplayServerX11Property, *mut Display, *mut Window) {
+    pub(super) fn create_x11_display_connection() -> (KLinuxDisplayServerX11Property, *mut Display) {
         unsafe {
             // Create display connection
             let display = XOpenDisplay(std::ptr::null());
 
-            let window = XCreateSimpleWindow(display, XDefaultRootWindow(display), 0,0,
-                    width as u32, height as u32, 4, 0, 0);
-
             // Create x11 Properties
             let x11_prop = KLinuxDisplayServerX11Property::new(display);
+
+            // Return properties and display connection
+            (x11_prop, display)
+        }
+    }
+
+    /// Create x11 Window according to position, size and if fullscreen or not.
+    #[inline(always)]
+    pub(super) fn create_x11_window(display : *mut Display, x11_prop : &KLinuxDisplayServerX11Property, position : (i32, i32), 
+        size : (u32,u32), fullscreen : bool) -> *mut Window {
+        unsafe {
+            let window = XCreateSimpleWindow(display, XDefaultRootWindow(display), position.0,position.1,
+                    size.0, size.1, 4, 0, 0);
 
             // Set window Type to normal
             x11_change_property!(display, window, x11_prop, _NET_WM_WINDOW_TYPE, _NET_WM_WINDOW_TYPE_NORMAL);
@@ -350,35 +264,46 @@ impl KWindow {
             x11_change_property!(display, window, x11_prop, _NET_WM_ALLOWED_ACTIONS, _NET_WM_ACTION_FULLSCREEN, _NET_WM_ACTION_MINIMIZE, _NET_WM_ACTION_CHANGE_DESKTOP,
                 _NET_WM_ACTION_CLOSE, _NET_WM_ACTION_ABOVE, _NET_WM_ACTION_BELOW);
 
+            if fullscreen {
+                // Set as fullscreen
+                 x11_change_property!(display, window, x11_prop, _NET_WM_STATE, _NET_WM_STATE_MAXIMIZED_HORZ, _NET_WM_STATE_MAXIMIZED_VERT, _NET_WM_STATE_FULLSCREEN);
+            }
+
+            // Write stored title
+            XStoreName(display, window, x11_prop.wm_title.as_ptr() as *mut i8);
 
             // Map window to display
             XMapWindow(display, window);
 
-            let mask : i64    = KeyPressMask | KeyReleaseMask |             // Keyboard Button Down and Up
-                                ButtonPressMask | ButtonReleaseMask |       // Controller button??? TBD 
-                                EnterWindowMask | LeaveWindowMask |         // Window focus, blur
-                                PointerMotionMask | Button1MotionMask | 
-                                Button2MotionMask | Button3MotionMask |
-                                Button4MotionMask | Button5MotionMask |
-                                ButtonMotionMask |                          // Mouse motion??? TBD
-                                StructureNotifyMask | // ResizeRedirectMask |
-                                VisibilityChangeMask | FocusChangeMask |
-                                PropertyChangeMask | ExposureMask;                        // Window event I guess??
-
             // Mask of events to receive
-            XSelectInput(display, window, mask);
+            XSelectInput(display, window, EVENT_MASK);
 
+            // Flush buffer
+            XFlush(display);
             
-            
-            // Return properties,  display and window pointer
-            (x11_prop, display, window)
+            // Return window pointer
+            window
         }
     }
+
+
 
     /// Restore the [KWindow], undoing any minimized, maximized and/or fullscreen status.
     #[inline(always)]
     pub(super) fn x11_restore(&mut self) {
-        todo!()
+        unsafe {
+        let states = self.get_x11_window_states();
+
+            // Destroy current window
+            XDestroyWindow(self.display_server.display, self.display_server.window);
+
+            // Recreate window as normal
+            self.display_server.window = KWindow::create_x11_window(self.display_server.display, &self.display_server.x11_property, self.display_server.x11_property.restoration_position_size.0,
+                self.display_server.x11_property.restoration_position_size.1, false);   
+
+            self.set_position(self.display_server.x11_property.restoration_position_size.0);
+        }        
+
     }
 
     // Pop an event from the queue
@@ -468,8 +393,33 @@ impl KWindow {
                 CirculateRequest=> { debug_println!("KWindow({:p}), CirculateRequest({})", self, xevent._type); KEvent::Unknown },
                 PropertyNotify=> { // This section could use a lil refactorisation.
                     let states = self.get_x11_window_states();
+
+                    debug_println!("States[{:?}]", states);
                     
-                    
+                    if states.2 {   // Send fullscreen if not already registered.
+                        if !self.property.fullscreen {
+                            self.property.fullscreen = true;
+                            return KEvent::Window(KEventWindow::Fullscreen());
+                        }
+                    } else {    // Send restore if not already registered.
+                        if self.property.fullscreen {
+                            self.property.fullscreen = false;
+                            return KEvent::Window(KEventWindow::Restored());
+                        }
+
+                        if states.1 {   // Send maximized if not already registered.
+                            if !self.property.maximized {
+                                self.property.maximized = true;
+                                return KEvent::Window(KEventWindow::Maximized());
+                            }
+                        } else {    // Send restore if not already registered.
+                            if self.property.maximized {
+                                self.property.maximized = false;
+                                return KEvent::Window(KEventWindow::Restored());
+                            }
+                        }
+                    }
+
                     if states.0 {   // Send minimized if not already registered.
                         if !self.property.minimized {
                             self.property.minimized = true;
@@ -482,29 +432,9 @@ impl KWindow {
                         }
                     }
 
-                    if states.1 {   // Send maximized if not already registered.
-                        if !self.property.maximized {
-                            self.property.maximized = true;
-                            return KEvent::Window(KEventWindow::Maximized());
-                        }
-                    } else {    // Send restore if not already registered.
-                        if self.property.maximized {
-                            self.property.maximized = false;
-                            return KEvent::Window(KEventWindow::Restored());
-                        }
-                    }
+                    
 
-                    if states.2 {   // Send fullscreen if not already registered.
-                        if !self.property.fullscreen {
-                            self.property.fullscreen = true;
-                            return KEvent::Window(KEventWindow::Fullscreen());
-                        }
-                    } else {    // Send restore if not already registered.
-                        if self.property.fullscreen {
-                            self.property.fullscreen = false;
-                            return KEvent::Window(KEventWindow::Restored());
-                        }
-                    }
+                   
 
                     KEvent::None 
                 },
@@ -624,9 +554,10 @@ impl KWindow {
 
                     // 32 bits
                     32 => {
-                        // Convert properties to u32
-                        let states: &mut [u32] = core::slice::from_raw_parts_mut(prop_return as *mut u32, nitems_return as usize);
+                        // Convert properties to Atom
+                        let states: &mut [Atom] = core::slice::from_raw_parts_mut(prop_return as *mut Atom, nitems_return as usize);
                         debug_println!("States={:?}", states);
+                        
                         for state in states{
                             match *state as Atom {
                                 state if self.display_server.x11_property._NET_WM_STATE_HIDDEN == state => {

@@ -1,7 +1,7 @@
 use std::{os::raw::{ c_char, c_ulong }, ffi::{CString}};
 use debug_print::debug_println;
 
-use crate::{kleio::display::{KWindow}, wayland_or_x11, error::{OlympusError, KWindowError}};
+use crate::{kleio::display::{KWindow, event::window}, wayland_or_x11, error::{OlympusError, KWindowError}};
 
 use super::{x11::{event::{XEvent, Atom}, bind::{XCloseDisplay, XInternAtom}}};
 
@@ -89,8 +89,10 @@ impl KLinuxDisplayServer {
             KLinuxDisplayServerProvider::X11 => {
                 if KWindow::x11_supported() {
                     let provider = KLinuxDisplayServerProvider::X11;
-                    let prop_dis_win = KWindow::create_x11_window(width, height);
-                    Ok(KLinuxDisplayServer{ provider, x11_property : prop_dis_win.0, display : prop_dis_win.1, window : prop_dis_win.2 })
+
+                    let prop_dis = KWindow::create_x11_display_connection();
+                    let window = KWindow::create_x11_window(prop_dis.1, &prop_dis.0, (0,0), (width, height), false);
+                    Ok(KLinuxDisplayServer{ provider, x11_property : prop_dis.0, display : prop_dis.1, window : window })
                 } else {
                     // No x11 support.
                     Err(OlympusError::KWindow(KWindowError::NotSupported))
@@ -145,6 +147,9 @@ macro_rules! x11_server_property {
 
             /// Flag used to make sure XHideCursor was called prior to XShowCursor to prevent crash
             pub(crate) x_hide_cursor_flag : bool,
+
+            /// Position and size for restoring window.
+            pub(crate) restoration_position_size : ((i32,i32),(u32,u32)),
         }
 
         impl KLinuxDisplayServerX11Property{
@@ -156,13 +161,12 @@ macro_rules! x11_server_property {
                     _NET_WM_STATE_REMOVE : 0, _NET_WM_STATE_ADD : 1, _NET_WM_STATE_TOGGLE : 2,
                     $atom :  XInternAtom(display, CString::new(stringify!($atom)).unwrap().as_ptr(), true),
                     $($atoms : XInternAtom(display, CString::new(stringify!($atoms)).unwrap().as_ptr(), true),)*
-                    xa_atom : 4, x_hide_cursor_flag : false };
+                    xa_atom : 4, x_hide_cursor_flag : false, restoration_position_size : ((0,0),(0,0)) };
 
                     // Make sure that all Atoms have value > 0.
                     assert_ne!(x11_prop.$atom, 0, "Atom [{}] value must NOT be 0.", stringify!($atom));
 
-                    debug_println!("X11 Properties : {:?}", x11_prop);
-
+                    // Return propertis
                     x11_prop
                 }
             }
@@ -173,7 +177,8 @@ macro_rules! x11_server_property {
                     _NET_WM_STATE_REMOVE : 0, _NET_WM_STATE_ADD : 1, _NET_WM_STATE_TOGGLE : 2,
                     $atom :  0,
                     $($atoms : 0,)*
-                    xa_atom : 4, x_hide_cursor_flag : false }
+                    xa_atom : 4, x_hide_cursor_flag : false,
+                    restoration_position_size : ((0,0),(0,0)) }
             }
         }
 

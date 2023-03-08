@@ -297,6 +297,7 @@ fn kwindow_x11_size() {
 /// V1 | KWindow::get_title() returns the default title.
 /// V2 | KWindow::set_title() set the new title without errors.
 /// V3 | KWindow::get_title() returns the new title.
+/// V4 | KWindow::set_title() multiple time without error.
 fn kwindow_x11_title() {
     kwindow_x11_prepare!(wx11, dispatcher, receiver, {
         // V1 | KWindow::get_title() returns the default title.
@@ -307,6 +308,12 @@ fn kwindow_x11_title() {
 
         // V3 | KWindow::get_title() returns the new title.
         assert_eq!(wx11.get_title(), KWINDOW_TITLE, "Title expect {:?} and not {:?}!", KWINDOW_TITLE, wx11.get_title());
+
+        // V4 | KWindow::set_title() multiple time without error.
+        for i in 0..255 {
+            let title = format!("{}{}", "Title", i);
+            wx11.set_title(title.as_str());
+        }
     });
 }
 
@@ -326,6 +333,7 @@ fn kwindow_x11_title() {
 fn kwindow_x11_fullscreen_restore() {
     kwindow_x11_prepare!(wx11, dispatcher, receiver, {
 
+        wx11.set_title("Default");
         
         // V1 | KWindow::is_fullscreen(), is_maximized(), is_minimized() all returns false as default.
         assert!(!wx11.is_fullscreen() && !wx11.is_maximized() && !wx11.is_minimized(), "is_fullscreen(), is_maximized(),is_minimized should all be false!");
@@ -334,16 +342,24 @@ fn kwindow_x11_fullscreen_restore() {
 
         // V2 | KWindow::set_fullscreen() work without error and window now fullscreen.
         wx11.set_fullscreen(KWindowFullscreenMode::CurrentScreen);
+
+        wx11.set_title("Fullscreen");
         
         kwindow_x11_step_loop!("KWindow should now be fullscreen. Press SPACE to restore.", wx11, dispatcher, receiver);
 
-        /*
+        
         // V3 | KWindow::is_fullscreen() = true, is_maximized() = false, is_minimized() = false.
         assert!(wx11.is_fullscreen() && !wx11.is_maximized() && !wx11.is_minimized(), "Only is_fullscreen() should be true!");
  
         // V4 | KWindow::restore() work without error and window now restored.
         wx11.restore();
 
+        wx11.set_title("Restored");
+
+
+        kwindow_x11_step_loop!("KWindow should now be restored. Press SPACE to continue.", wx11, dispatcher, receiver);
+
+        /*
         // V5 | KWindow::is_fullscreen() = false, is_maximized() = false, is_minimized() = false.
         assert!(!wx11.is_fullscreen() && !wx11.is_maximized() && !wx11.is_minimized(), "is_fullscreen(), is_maximized(),is_minimized should all be false!");
         kwindow_x11_step_loop!("KWindow should now be restored. Press SPACE for stress.", wx11, dispatcher, receiver);
