@@ -2,7 +2,9 @@ use crate::kleio::display::event::{KEventWindow, KEventKeyboard, KEventControlle
 use debug_print::debug_println;
 use crate::error::OlympusError;
 use crate::error::KWindowError;
+use super::KWindowProvider;
 
+use super::KWindowManager;
 use super::{event::{ KEvent, KEventDispatcher}, screen::KScreenList, KWindowProperty};
 use super::{ KCursorMode };
 use super::KWindowFullscreenMode;
@@ -22,29 +24,24 @@ pub const KWINDOW_MAX_WIDTH : u32 = 65535;
 /// Maximum [KWindow] height allowed.
 pub const KWINDOW_MAX_HEIGHT : u32 = 65535;
 
-/// Create and manage a window frame for display.
+/// Create and manage a window frame for display. 
 /// 
 /// [KWindow] broadcasts [KEvent] to multiple [KEventReceiver] via [KWindow::dispatch_events()].
+/// 
+/// Act as a window factory.
 /// 
 /// TODO: More doc about OS, dispatch, and Examples
 pub struct KWindow {
 
-    /// Hardware screen list
-    pub(super) screen_list : KScreenList,
-
     /// KWindow properties
     pub(super) property : KWindowProperty,
 
-    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
-    /// Linux display server details (Linux only).
-    pub(super) display_server : super::linux::server::KLinuxDisplayServer,
+    /// [KWindowManager] that manage the window.
+    pub(crate) manager : Box<dyn KWindowManager>,
 }
 
 impl KWindow {
     /// Create a new sized [KWindow] in the middle of the main default screen.
-    /// 
-    /// Display server provider can be set to preferred display server or default. This will try to create a 
-    /// [Wayland](https://en.wikipedia.org/wiki/Wayland_(protocol)) window first then a [x11](https://en.wikipedia.org/wiki/X_Window_System) window if not compatible with Wayland.
     /// 
     /// Return New [`KWindow`].
     /// 
@@ -53,38 +50,53 @@ impl KWindow {
     /// Returns [OlympusError::KWindow(KWindowError::NoDisplayServer)] if no display server found on Linux.
     /// 
     /// Returns [OlympusError::KWindow(KWindowError::SizeError)] if width and/or height aren't within allowed boundaries.
-    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
-    pub fn new(width:u32, height:u32, provider : super::linux::server::KLinuxDisplayServerProvider) -> Result<KWindow, OlympusError> {
-        #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux"))))]
-
-        // Make sure dimension are within boundaries.
-        if KWindow::is_size_within_boundaries(width, height) {
-            KWindow::__new(width, height, provider)     // Private platform inline implementation
-        } else {
-            Err(OlympusError::KWindow(KWindowError::SizeError))
-        }
-
-    }
-
-    /// Create a new sized [KWindow] in the middle of the main default screen.
-    /// 
-    /// Return New [`KWindow`].
-    /// 
-    /// 
-    /// # Error(s)
-    /// Returns [OlympusError::KWindow(KWindowError::SizeError)] if width and/or height aren't within allowed boundaries.
-    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "windows", target_os = "macos"))))]
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
     pub fn new(width:u32, height:u32) -> Result<KWindow, OlympusError> {
-        #![cfg_attr(docsrs, doc(cfg(any(target_os = "windows", target_os = "macos"))))]
+        #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
 
         // Make sure dimension are within boundaries.
         if KWindow::is_size_within_boundaries(width, height) {
-            KWindow::__new(width, height)     // Private platform inline implementation
+            // Linux only implementation
+            #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
+            {
+                // Try Wayland first
+                match KWindow::from_provider(KWindowProvider::Wayland, width, height) {
+                    Ok(window) => {
+                        Ok(window)
+                    },
+                    Err(_) => {
+                        // Then try x11
+                        match KWindow::from_provider(KWindowProvider::X11, width, height) {
+                            Ok(window) => {
+                                Ok(window)
+                            },
+                            Err(_) => {
+                                // Return error that no display server were found.
+                                Err(OlympusError::KWindow(KWindowError::NoDisplayServer))
+                            },
+                        }
+                    },
+                }
+            }
+
+            // Windows only implementation
+            #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "windows"))))]
+            {
+                todo!()
+            }
+
+            // MacOs only implementation
+            #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "macos"))))]
+            {
+                todo!()
+            }
+
         } else {
             Err(OlympusError::KWindow(KWindowError::SizeError))
         }
 
     }
+
 
     /// Create a new [KWindow] for mobile devices.
     /// 
@@ -94,14 +106,37 @@ impl KWindow {
     pub fn new() -> Result<KWindow, OlympusError> {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "android", target_os = "ios"))))]
         
-        KWindow::__new()     // Private platform inline implementation
+        todo!()
     }
+
+    /// Create a [KWindow] from specified provider in the middle of primary screen.
+    /// 
+    /// Used exclusively for operating system with multiple display server and/or window manager.
+    /// 
+    /// # Error(s)
+    /// Returns [OlympusError::KWindow(KWindowError::NotSupported)] if display server not supported.
+    /// 
+    /// Returns [OlympusError::KWindow(KWindowError::SizeError)] if width and/or height aren't within allowed boundaries.
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
+    pub fn from_provider(provider : KWindowProvider, width:u32, height:u32) -> Result<KWindow, OlympusError> {
+        #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux"))))]
+
+        
+        if KWindow::is_size_within_boundaries(width, height) {
+            todo!()   
+
+        } else {
+            Err(OlympusError::KWindow(KWindowError::SizeError))
+        }
+    }
+
+
 
 
     /// Dispatch [KEvent] to [KEventReceiver] using a [KEventDispatcher].
     /// 
     /// # Note(s)
-    /// After dispatching events, [KWindow::sync_events()] will be called automatically if parameter sync is true.
+    /// After dispatching events, [KWindow::sync()] will be called automatically if parameter sync is true.
     /// 
     /// # Example(s)
     /// Dispatching at each loop call in Main loop
@@ -122,11 +157,11 @@ impl KWindow {
     pub fn dispatch_events(&mut self, dispatcher : &mut KEventDispatcher, sync : bool) {
 
         // First get the event count to poll. This is important to prevent bloking.
-        let event_count = self.__get_event_count();  // Private platform inline implementation
+        let event_count = self.manager.get_event_count();
 
         for _ in 0..event_count {
             // Fetch event
-            let event = self.__poll_event();    // Private platform inline implementation
+            let event = self.manager.poll_event();
 
             // Let KWindow handle event first.
             if !self.handle_kwindow_event(&event) {
@@ -135,53 +170,37 @@ impl KWindow {
             }
         }
 
-        // Sync events with display server
+        // Sync events with window manager
         if sync {
-            self.__sync_events();   // Private platform inline implementation
+            self.manager.sync();
         }
     }
 
     /// Confine cursor to window, preventing it from exiting boundaries.
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]        
     pub fn confine_cursor(&mut self) {
+        #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         // Confined only if released.
         if !self.property.cursor.confined {
-            self.__confine_cursor();
+            self.manager.confine_cursor();
             self.property.cursor.confined = true;
         }
     }
 
-     /// Get the cursor position with as a pair (x,y).
-     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-     pub fn get_cursor_position(&self) -> (i32, i32) {
-         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-         self.property.cursor.position
-     }
-
-    /// Get the display server provider identification.
-    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
-    pub fn get_display_server_provider(&self) -> super::linux::server::KLinuxDisplayServerProvider{
-        #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux"))))]
-       self.display_server.provider
+    /// Get the cursor position with as a pair (x,y).
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
+    pub fn get_cursor_position(&self) -> (i32, i32) {
+        #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
+        self.property.cursor.position
     }
 
-    /// Get the display server connection.
-    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
-    pub fn get_display_server_connection(&self) -> *const super::linux::server::Display{
-        #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux"))))]
-        self.display_server.display
-    }
-    
-    /// Get the display server window handle.
-    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
-    pub fn get_display_server_window(&self) -> *const super::linux::server::Window{
-        #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux"))))]
-        self.display_server.window
+    /// Get immutable reference to [KWindowManager].
+    /// 
+    /// Karen want to speak to your [KWindowManager]...
+    pub fn get_window_manager(&self) -> &Box<dyn KWindowManager>{
+        &self.manager
     }
 
-    /// Get the count of events that need handling.
-    pub fn get_event_count(&self) -> usize {
-        self.__get_event_count()    // Private platform inline implementation
-    }
 
     /// Get the [KCursorMode] for the [KWindow] [KEventMouse](enum.KEventMouse.html) events.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
@@ -204,9 +223,25 @@ impl KWindow {
         self.property.size
     }
 
-    /// Returns list of connected screens with details.
-    pub fn get_screen_list(&self) -> &KScreenList {
-        &self.screen_list
+    /// Returns a list of connected screens with details.
+    pub fn get_screen_list() -> KScreenList {
+        // Linux only implementation
+        #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux"))))]
+        {
+            todo!()
+        }
+
+        // Windows only implementation
+        #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "windows"))))]
+        {
+            todo!()
+        }
+
+        // MacOs only implementation
+        #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "macos"))))]
+        {
+            todo!()
+        }
     }
 
     /// Returns the [KWindow] title. 
@@ -215,15 +250,15 @@ impl KWindow {
     }
 
     /// Hide system default cursor.
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
     pub fn hide_cursor(&mut self) {
+        #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         // Hide only if visible.
         if self.property.cursor.visible {
-            self.__hide_cursor();
+            self.manager.hide_cursor();
             self.property.cursor.visible = false;
         }
     }
-
-
 
     /// Get if the cursor is confined to the window, preventing it from going further than window boundaries.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
@@ -264,10 +299,12 @@ impl KWindow {
     /// Release cursor from window, allowing it to exit boundaries.
     /// 
     /// Cursor will ALWAYS be released if the window loses focus.
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
     pub fn release_cursor(&mut self) {
+        #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         // Release only if confined.
         if self.property.cursor.confined {
-            self.__release_cursor();
+            self.release_cursor();
             self.property.cursor.confined = false;
         }
     }
@@ -276,20 +313,22 @@ impl KWindow {
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
     pub fn restore(&mut self) {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-        self.__restore();
+        self.restore();
     }
 
     /// Set a new title for the [KWindow].
     pub fn set_title(&mut self, title : &str) {
         self.property.title = String::from(title);
-        self.__set_title();
+        self.set_title(self.property.title.as_str());
     }
 
     /// Show system default cursor.
+    #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
     pub fn show_cursor(&mut self) {
+        #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         // Show only if not visible.
         if !self.property.cursor.visible {
-            self.__show_cursor();
+            self.show_cursor();
             self.property.cursor.visible = true;
         }
     }
@@ -299,7 +338,7 @@ impl KWindow {
     pub fn set_position(&mut self, position : (i32, i32)){
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         self.property.position = position;
-        self.__set_position();
+        self.set_position(position);
     }
 
     /// Set dimension of [KWindow] according to size (width, height).
@@ -309,12 +348,12 @@ impl KWindow {
     /// # Error(s)
     /// Returns [OlympusError::KWindow(KWindowError::SizeError)] if width and/or height not within allowed boundaries.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-    pub fn set_size(&mut self, dimension : (u32, u32)) -> Result<u8, OlympusError>{
+    pub fn set_size(&mut self, size : (u32, u32)) -> Result<u8, OlympusError>{
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
         // Make sure dimension are within boundaries.
-        if KWindow::is_size_within_boundaries(dimension.0, dimension.1) {
-            self.property.size = dimension;
-            self.__set_size();
+        if KWindow::is_size_within_boundaries(size.0, size.1) {
+            self.property.size = size;
+            self.set_size(size);
             Ok(0)
         } else {
             Err(OlympusError::KWindow(KWindowError::SizeError))
@@ -323,11 +362,11 @@ impl KWindow {
 
     /// Set the [KWindow] as fullscreen according to [KWindowFullscreenMode] parameter.
     #[cfg(any(doc, all(not(target_family = "wasm"), any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-    pub fn set_fullscreen(&mut self, mode : KWindowFullscreenMode) {
+    pub fn set_fullscreen(&mut self, fs_mode : KWindowFullscreenMode) {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
 
         if !self.property.fullscreen {
-            self.__set_fullscreen(mode);
+            self.manager.set_fullscreen(fs_mode);
         }
     }
 
@@ -337,7 +376,7 @@ impl KWindow {
         #![cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
 
         self.property.cursor.position = position;
-        self.__set_cursor_position(position);   // Private platform inline implementation
+        self.set_cursor_position(position); 
     }
 
     /// Set the cursor mode for the [KWindow] [KEventMouse](enum.KEventMouse.html) events.
@@ -358,8 +397,8 @@ impl KWindow {
     /// Sync all event between client and display server / window manager. 
     /// 
     /// This need to be called at each loop if [KWindow::dispatch_events()] sync parameter = false..
-    pub fn sync_events(&self) {
-        self.__sync_events();    // Private platform inline implementation
+    pub fn sync(&self) {
+        self.sync();  
     }
 }
 
@@ -420,28 +459,28 @@ impl KWindow {
             KEventWindow::CursorEnter() => {
                 // Hide cursor if supposed to be hidden.
                 if !self.property.cursor.visible {
-                    self.__hide_cursor();
+                    self.manager.hide_cursor();
                 }
                 false
             },
             KEventWindow::CursorLeave() => {
                 // Show hidden cursor when out of window.
                 if !self.property.cursor.visible {
-                    self.__show_cursor();
+                    self.manager.show_cursor();
                 }
                 false
             },
             KEventWindow::Focus() => {
                 // If cursor is confined, confine cursor on focus.
                 if self.property.cursor.confined {
-                    self.__confine_cursor();
+                    self.manager.confine_cursor();
                 }
                 false
             },
             KEventWindow::Blur() => {
                 // If cursor is confined, release cursor on blur.
                 if self.property.cursor.confined {
-                    self.__release_cursor();
+                    self.manager.release_cursor();
                 }
                 false
             },

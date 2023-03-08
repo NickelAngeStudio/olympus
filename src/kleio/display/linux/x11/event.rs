@@ -2,14 +2,30 @@
 // NOTE: All struct and union members name start with "_" to prevent conflict with Rust reserved words.
 
 use std::os::raw::{ c_int, c_long, c_uint, c_ulong, c_char, c_uchar, c_short, c_void };
-use super::{Display, Window};
-
 // Types definition (ref : https://docs.rs/x11/latest/x11)
 pub type Time = c_ulong;
 pub type XID = c_ulong;
 pub type Atom = XID;
 pub type Colormap = XID;
 pub type Drawable = XID;
+
+/// Type used for display server window pointer.
+pub type Window = c_ulong;
+
+/// Type used for display server connection pointer. 
+pub type Display = c_ulong;
+
+/// Type used for pix map
+pub type Pixmap = c_ulong;
+
+/// XPointer type
+pub type XPointer = *mut c_char;
+
+/// Visual ID type
+pub type VisualID = c_ulong;
+
+/// Cursor type
+pub type Cursor = c_ulong;
 
 /// Union 'data' of XClientMessageEvent struct.
 #[repr(C)]

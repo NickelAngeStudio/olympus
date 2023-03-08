@@ -1,3 +1,6 @@
+use core::time;
+use std::thread;
+use std::time::Duration;
 use std::{rc::Rc, cell::RefCell};
 use std::process::exit;
 use olympus::error::{OlympusError, KWindowError};
@@ -11,19 +14,22 @@ use crate::{ assert_ok, kleio::display::KEventReceiverControl, kwindow_x11_prepa
 * CONSTS *
 *********/
 /// Window dimension
-pub const KWINDOW_WIDTH:u32 = 320;
-pub const KWINDOW_HEIGHT:u32 = 240;
+pub const KWINDOW_WIDTH:u32 = 640;
+pub const KWINDOW_HEIGHT:u32 = 480;
 
 /// New position for cursor tests. Must be center of KWindow.
-pub const CURSOR_X:i32 = 160;
-pub const CURSOR_Y:i32 = 120;
+pub const CURSOR_X:i32 = 320;
+pub const CURSOR_Y:i32 = 240;
 
 /// New position for KWindow.
 pub const KWINDOW_POS_X:i32 = 151;
 pub const KWINDOW_POS_Y:i32 = 262;
 
-// New title for KWindow with special characters
+/// New title for KWindow with special characters
 pub const KWINDOW_TITLE : &str = "*Test window title çéàè*&?%!";
+
+/// Time to wait between stress cycle
+pub const WAIT_MS: Duration = time::Duration::from_millis(1);
 
 /********
 * TESTS *
@@ -40,14 +46,15 @@ fn kwindow_x11_get_display_server() {
     kwindow_x11_prepare!(wx11, dispatcher, receiver, {
         // V1 | KWindow::get_display_server_provider() returns the correct X11 provider.
         assert_eq!(wx11.get_display_server_provider(), KLinuxDisplayServerProvider::X11, "Wrong provider given!");
+        thread::sleep(WAIT_MS);
         
         // V2 | KWindow::get_display_server_connection() returns a valid connection pointer.
         assert_ne!(wx11.get_display_server_connection(), std::ptr::null_mut(), "KWindow X11 connection pointer error!");
+        thread::sleep(WAIT_MS);
 
         // V3 | KWindow::get_display_server_window() returns a valid window pointer.
         assert_ne!(wx11.get_display_server_window(), std::ptr::null_mut(), "KWindow X11 window pointer error!");
-
-        kwindow_x11_step_loop!(wx11, dispatcher, receiver);
+        thread::sleep(WAIT_MS);
     });
 }
 
@@ -190,18 +197,26 @@ fn kwindow_x11_cursor_properties() {
 /// V2 | KWindow::set_cursor_position() set the new position without errors.
 /// V3 | KWindow::get_cursor_position() returns the new position.
 /// V4 | Change motion mode to Acceleration. Window::set_cursor_position() should give center.
+/// V5 | KWindow::set_cursor_position() set the new position without errors multiple times.
 fn kwindow_x11_cursor_position() {
     kwindow_x11_prepare!(wx11, dispatcher, receiver, {
+
+        // Confine cursor for test
+        wx11.confine_cursor();
+
         // V1 | KWindow::get_cursor_position() returns the current cursor position.
         let _cp = wx11.get_cursor_position();
+        thread::sleep(WAIT_MS);
 
         // V2 | KWindow::set_cursor_position() set the new position without errors.
         wx11.set_cursor_position((CURSOR_X / 2, CURSOR_Y / 2));
+        thread::sleep(WAIT_MS);
 
         // V3 | KWindow::get_cursor_position() returns the new position.
         let _cp = wx11.get_cursor_position();
         assert_eq!(_cp.0, CURSOR_X / 2, "Cursor X expect {} and not {}!", CURSOR_X / 2, _cp.0);
         assert_eq!(_cp.1, CURSOR_Y / 2, "Cursor Y expect {} and not {}!", CURSOR_Y / 2, _cp.1);
+        thread::sleep(WAIT_MS);
 
         // V4 | Change motion mode to Acceleration. Window::set_cursor_position() should give center.
         wx11.set_cursor_mode(KCursorMode::Acceleration);
@@ -209,6 +224,23 @@ fn kwindow_x11_cursor_position() {
         let _cp = wx11.get_cursor_position();
         assert_eq!(_cp.0, CURSOR_X, "Cursor X expect {} and not {}!", CURSOR_X, _cp.0);
         assert_eq!(_cp.1, CURSOR_Y, "Cursor Y expect {} and not {}!", CURSOR_Y, _cp.1);
+        thread::sleep(WAIT_MS);
+
+        // V5 | KWindow::set_cursor_position() set the new position without errors multiple times.
+        wx11.set_cursor_mode(KCursorMode::Pointer);
+        for i in 0..255 {
+            wx11.set_cursor_position((i * 2,i ));
+            
+            let _cp = wx11.get_cursor_position();
+            assert_eq!(_cp.0, i * 2, "Cursor X expect {} and not {}!", i * 2, _cp.0);
+            assert_eq!(_cp.1, i , "Cursor Y expect {} and not {}!", i , _cp.1);
+
+            wx11.dispatch_events(&mut dispatcher, true);
+
+            thread::sleep(WAIT_MS);
+        }
+
+
     });
 }
 
@@ -221,20 +253,40 @@ fn kwindow_x11_cursor_position() {
 /// V1 | KWindow::get_position() gives default position.
 /// V2 | KWindow::set_position() work without error.
 /// V3 | KWindow::get_position() return new position.
+/// V4 | KWindow::set_position() multiple time work without error.
 fn kwindow_x11_position() {
     kwindow_x11_prepare!(wx11, dispatcher, receiver, {
         // V1 | KWindow::get_position() gives default position.
         let pos = wx11.get_position();
         assert!(pos.0 == wx11.get_position().0, "Default Position X error!");
         assert!(pos.1 == wx11.get_position().1, "Default Position Y error!");
+        thread::sleep(WAIT_MS);
 
         // V2 | KWindow::set_position() work without error.
         wx11.set_position((KWINDOW_POS_X,KWINDOW_POS_Y));
+        thread::sleep(WAIT_MS);
 
         // V3 | KWindow::get_position() return new position.
         let pos = wx11.get_position();
         assert!(pos.0 == KWINDOW_POS_X, "New Position X error!");
         assert!(pos.1 == KWINDOW_POS_Y, "New Position Y error!");
+        thread::sleep(WAIT_MS);
+
+        // V4 | KWindow::set_position() multiple time work without error.
+        for i in 0..255 {
+            wx11.set_position((i * 5,i * 2));
+            
+
+            let pos = wx11.get_position();
+            assert!(pos.0 == i * 5, "New Position X error!");
+            assert!(pos.1 == i * 2, "New Position Y error!");
+
+            wx11.dispatch_events(&mut dispatcher, true);
+
+            thread::sleep(WAIT_MS);
+
+            
+        }
     });
 }
 
@@ -252,6 +304,7 @@ fn kwindow_x11_position() {
 /// V7 | KWindow::get_size() return new size.
 /// V8 | KWindow::set_size() work without error when within maximum boundaries.
 /// V9 | KWindow::get_size() return new size.
+/// V10 | KWindow::set_size() multiple time without error.
 fn kwindow_x11_size() {
     kwindow_x11_prepare!(wx11, dispatcher, receiver, {
         // V1 | KWindow::get_size() returns the default size.
@@ -286,6 +339,23 @@ fn kwindow_x11_size() {
         let size = wx11.get_size();
         assert_eq!(size.0, KWINDOW_MAX_WIDTH, "Width expect {} and not {}!", KWINDOW_MAX_WIDTH, size.0);
         assert_eq!(size.1, KWINDOW_MAX_HEIGHT, "Height expect {} and not {}!", KWINDOW_MAX_HEIGHT, size.1);
+
+        // V10 | KWindow::set_size() multiple time without error.
+        for i in 0..255 {
+            assert_ok!(wx11.set_size((KWINDOW_MIN_WIDTH + i,KWINDOW_MIN_HEIGHT + i)));
+            
+
+            let size = wx11.get_size();
+            assert_eq!(size.0, KWINDOW_MIN_WIDTH + i, "Width expect {} and not {}!", KWINDOW_MIN_WIDTH + i, size.0);
+            assert_eq!(size.1, KWINDOW_MIN_HEIGHT + i, "Height expect {} and not {}!", KWINDOW_MIN_HEIGHT + i, size.1);
+
+            wx11.dispatch_events(&mut dispatcher, true);
+
+            thread::sleep(WAIT_MS);
+
+            
+        }
+
     });
 }
 

@@ -24,7 +24,7 @@ use self::constant::{CurrentTime, VisibilityUnobscured, PropModeReplace};
 use self::event::{Atom};
 use self::{ bind::{XOpenDisplay, XCloseDisplay, XNextEvent}, constant::{KeyReleaseMask, ButtonReleaseMask, LeaveWindowMask, EnterWindowMask, Button1MotionMask, PointerMotionMask, Button3MotionMask, Button2MotionMask, Button5MotionMask, Button4MotionMask, ButtonMotionMask, StructureNotifyMask, ResizeRedirectMask, VisibilityChangeMask, FocusChangeMask, PropertyChangeMask}};
 
-use super::server::{ Display, Window, KLinuxDisplayServerX11Property };
+use super::server::{ KLinuxDisplayServerX11Property };
 
 /// Contains X11 contants definition
 #[allow(unused)]                    // Remove unused variable notification
@@ -73,7 +73,7 @@ macro_rules! x11_change_property {
 }
 
 
-/// Implementation of privates elements relatives to X11 display server
+/// Implementation of KWindow elements.
 #[doc(hidden)]
 impl KWindow {
 
@@ -152,7 +152,13 @@ impl KWindow {
     #[inline(always)]
     pub(super) fn x11_set_size(&mut self) {
         unsafe {
+            // Keep real window position
+            self.property.position = KWindow::get_x11_window_position(self.display_server.display, self.display_server.window);
+
             XResizeWindow(self.display_server.display, self.display_server.window, self.property.size.0, self.property.size.1);
+            
+            // Reposition window since resize put it back at 0,0
+            self.x11_set_position();
         }
     }
 
@@ -175,64 +181,40 @@ impl KWindow {
     pub(super) fn x11_set_fullscreen(&mut self, mode : KWindowFullscreenMode) {
         unsafe {
 
-            /*
-            let xwa = Self::get_x11_window_attributes(self.display_server.display, self.display_server.window);
-            match mode {
-                KWindowFullscreenMode::CurrentScreen => {
-
-                },
-                KWindowFullscreenMode::PrimaryScreen => {
-
-                },
-                KWindowFullscreenMode::ExtendedScreen(screen) => {
-
-                },
-                KWindowFullscreenMode::SelectScreen(screen) => {
-
-                },
+            if !self.property.fullscreen {
+                // Save windowed properties for restoration.
+                self.display_server.x11_property.restoration_position_size = (KWindow::get_x11_window_position(self.display_server.display, self.display_server.window), self.get_size());
             }
-            */
-
-            // Save window properties for restoration
-            self.display_server.x11_property.restoration_position_size = (self.get_position(), self.get_size());
 
             // Destroy current window
             XDestroyWindow(self.display_server.display, self.display_server.window);
 
-            // Recreate window as fullscreen
-            self.display_server.window = KWindow::create_x11_window(self.display_server.display, &self.display_server.x11_property, (0,0),
-                self.screen_list.get_primary_screen().unwrap().get_current_resolution(), true);           
+            match mode {
+                KWindowFullscreenMode::CurrentScreen => {
+                    // Recreate window as fullscreen
+                    self.display_server.window = KWindow::create_x11_window(self.display_server.display, KWindow::get_x11_default_root_window(self.display_server.display),
+                     &self.display_server.x11_property, (0,0),   self.screen_list.get_primary_screen().unwrap().get_current_resolution(), true);      
+                },
+                KWindowFullscreenMode::PrimaryScreen => {
+
+                },
+                KWindowFullscreenMode::DesktopScreen => {
+
+                },
+            }
+
+
+            
+
+            
+
+                 
             
             
         }
     }
         
-    /// Get if x11 display server is supported.
-    #[inline(always)]
-    pub(super) fn x11_supported() -> bool {
-        unsafe {
-            // Try to call C function with error handling.
-            let result = catch_unwind(|| {
-                XOpenDisplay(std::ptr::null())
-            }); 
-
-            match result {
-                Ok(display) => {
-                    if display == std::ptr::null_mut() {
-                        false
-                    } else {
-                        // Disconnect display before returning true
-                        XCloseDisplay(display);
-
-                        true
-                    }
-                },
-
-                // Error occurred, not compatible.
-                Err(_) => false,
-            }
-        }
-    }
+    
 
     /// Create connection to X11 display server
     #[inline(always)]
@@ -249,42 +231,7 @@ impl KWindow {
         }
     }
 
-    /// Create x11 Window according to position, size and if fullscreen or not.
-    #[inline(always)]
-    pub(super) fn create_x11_window(display : *mut Display, x11_prop : &KLinuxDisplayServerX11Property, position : (i32, i32), 
-        size : (u32,u32), fullscreen : bool) -> *mut Window {
-        unsafe {
-            let window = XCreateSimpleWindow(display, XDefaultRootWindow(display), position.0,position.1,
-                    size.0, size.1, 4, 0, 0);
-
-            // Set window Type to normal
-            x11_change_property!(display, window, x11_prop, _NET_WM_WINDOW_TYPE, _NET_WM_WINDOW_TYPE_NORMAL);
-
-            // Allowed actions
-            x11_change_property!(display, window, x11_prop, _NET_WM_ALLOWED_ACTIONS, _NET_WM_ACTION_FULLSCREEN, _NET_WM_ACTION_MINIMIZE, _NET_WM_ACTION_CHANGE_DESKTOP,
-                _NET_WM_ACTION_CLOSE, _NET_WM_ACTION_ABOVE, _NET_WM_ACTION_BELOW);
-
-            if fullscreen {
-                // Set as fullscreen
-                 x11_change_property!(display, window, x11_prop, _NET_WM_STATE, _NET_WM_STATE_MAXIMIZED_HORZ, _NET_WM_STATE_MAXIMIZED_VERT, _NET_WM_STATE_FULLSCREEN);
-            }
-
-            // Write stored title
-            XStoreName(display, window, x11_prop.wm_title.as_ptr() as *mut i8);
-
-            // Map window to display
-            XMapWindow(display, window);
-
-            // Mask of events to receive
-            XSelectInput(display, window, EVENT_MASK);
-
-            // Flush buffer
-            XFlush(display);
-            
-            // Return window pointer
-            window
-        }
-    }
+    
 
 
 
@@ -298,7 +245,7 @@ impl KWindow {
             XDestroyWindow(self.display_server.display, self.display_server.window);
 
             // Recreate window as normal
-            self.display_server.window = KWindow::create_x11_window(self.display_server.display, &self.display_server.x11_property, self.display_server.x11_property.restoration_position_size.0,
+            self.display_server.window = KWindow::create_x11_window(self.display_server.display, KWindow::get_x11_default_root_window(self.display_server.display), &self.display_server.x11_property, self.display_server.x11_property.restoration_position_size.0,
                 self.display_server.x11_property.restoration_position_size.1, false);   
 
             self.set_position(self.display_server.x11_property.restoration_position_size.0);
@@ -450,6 +397,86 @@ impl KWindow {
         }
     }
 
+
+    
+    
+}
+
+/*** PRIVATE ***/
+/// Implementation of private / intern x11 functions
+impl KWindow {
+    /// Get if x11 display server is supported.
+    /// TODO: Put in a thread.
+    #[inline(always)]
+    pub(super) fn x11_supported() -> bool {
+        unsafe {
+            // Try to call C function with error handling.
+            let result = catch_unwind(|| {
+                XOpenDisplay(std::ptr::null())
+            }); 
+
+            match result {
+                Ok(display) => {
+                    if display == std::ptr::null_mut() {
+                        false
+                    } else {
+                        // Disconnect display before returning true
+                        XCloseDisplay(display);
+
+                        true
+                    }
+                },
+
+                // Error occurred, not compatible.
+                Err(_) => false,
+            }
+        }
+    }
+
+    /// Create x11 Window according to position, size and if fullscreen or not.
+    #[inline(always)]
+    pub(super) fn create_x11_window(display : *mut Display, root : *mut Window, x11_prop : &KLinuxDisplayServerX11Property, position : (i32, i32), 
+        size : (u32,u32), fullscreen : bool) -> *mut Window {
+        unsafe {
+            let window = XCreateSimpleWindow(display, root, position.0,position.1,
+                    size.0, size.1, 4, 0, 0);
+
+            // Set window Type to normal
+            x11_change_property!(display, window, x11_prop, _NET_WM_WINDOW_TYPE, _NET_WM_WINDOW_TYPE_NORMAL);
+
+            // Allowed actions
+            x11_change_property!(display, window, x11_prop, _NET_WM_ALLOWED_ACTIONS, _NET_WM_ACTION_FULLSCREEN, _NET_WM_ACTION_MINIMIZE, _NET_WM_ACTION_CHANGE_DESKTOP,
+                _NET_WM_ACTION_CLOSE, _NET_WM_ACTION_ABOVE, _NET_WM_ACTION_BELOW);
+
+            if fullscreen {
+                // Set as fullscreen
+                 x11_change_property!(display, window, x11_prop, _NET_WM_STATE, _NET_WM_STATE_MAXIMIZED_HORZ, _NET_WM_STATE_MAXIMIZED_VERT, _NET_WM_STATE_FULLSCREEN);
+            }
+
+            // Write stored title
+            XStoreName(display, window, x11_prop.wm_title.as_ptr() as *mut i8);
+
+            // Map window to display
+            XMapWindow(display, window);
+
+            // Mask of events to receive
+            XSelectInput(display, window, EVENT_MASK);
+
+            // Flush buffer
+            XFlush(display);
+            
+            // Return window pointer
+            window
+        }
+    }
+
+    /// Get default root window of display
+    pub(super) fn get_x11_default_root_window(display : *mut Display) -> *mut Window {
+        unsafe {
+            XDefaultRootWindow(display)
+        }
+    }
+
     /// Get the real, translated position of KWindow.
     /// 
     /// Reference(s)
@@ -461,7 +488,7 @@ impl KWindow {
             let mut child : Window = 0;
             
             XTranslateCoordinates(display, window, 
-                XDefaultRootWindow(display), 0, 0, &mut x, &mut y, &mut child );
+                KWindow::get_x11_default_root_window(display), 0, 0, &mut x, &mut y, &mut child );
             let xwa = Self::get_x11_window_attributes(display, window);
             (x - xwa.x, y - xwa.y )
         }
@@ -472,7 +499,6 @@ impl KWindow {
         unsafe {
             let mut xwa = XWindowAttributes::empty();
             XGetWindowAttributes( display, window, &mut xwa );
-            debug_println!("XWA={:?}", xwa);
             xwa
         }
     }
@@ -593,5 +619,4 @@ impl KWindow {
             (hidden, maximized, fullscreen)
         }
     }
-    
 }

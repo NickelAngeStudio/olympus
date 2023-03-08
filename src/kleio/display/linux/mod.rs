@@ -15,7 +15,7 @@ pub mod x11;
 /// Linux display server details
 pub mod server;
 
-
+/*
 /// Macro shortcut to execute either wayland or x11 function.
 #[doc(hidden)]
 #[macro_export]
@@ -220,3 +220,4 @@ impl KWindow {
     
 
 }
+*/

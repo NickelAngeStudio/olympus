@@ -69,26 +69,13 @@ pub struct KCursorProperty {
 /// [KWindow] fullscreen mode enumeration.
 #[cfg(any(doc, any(target_os = "linux", target_os = "windows", target_os = "macos")))]
 #[cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
-pub enum KWindowFullscreenMode<'a> {
+pub enum KWindowFullscreenMode {
     /// Window will be set fullscreen in the current screen this window belong to.
     CurrentScreen,
 
     /// Window will be set fullscreen in the primary screen.
     PrimaryScreen,
 
-    /// Window will be set fullscreen in multiple screen that have the same resolution as reference screen.
-    /// 
-    /// # Example
-    /// Take 3 screens with those resolution :
-    /// 1. |1920x1080| 2. |1920x1080| 3.|2560x1440|
-    /// 
-    /// If screen 1 or 2 is given as reference, extended screen will use screen 1 and 2 since they are the same resolution.
-    /// If screen 3 is given as reference, only screen 3 will be used for extended screen.
-    ExtendedScreen(&'a KScreen),
-
-    /// Window will be set fullscreen in the selected screen.
-    SelectScreen(&'a KScreen),
-
-
-
+    /// Window will be set fullscreen for entire desktop which can be set across multiple physical screen.
+    DesktopScreen,
 }

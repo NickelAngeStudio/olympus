@@ -1,27 +1,9 @@
-use std::{os::raw::{ c_char, c_ulong }, ffi::{CString}};
+use std::{os::raw::{ c_char, c_ulong }, ffi::{CString}, any::Any};
 use debug_print::debug_println;
 
-use crate::{kleio::display::{KWindow, event::window}, wayland_or_x11, error::{OlympusError, KWindowError}};
+use crate::{kleio::display::{KWindow, event::{window, KEvent}}, wayland_or_x11, error::{OlympusError, KWindowError}};
 
-use super::{x11::{event::{XEvent, Atom}, bind::{XCloseDisplay, XInternAtom}}};
-
-/// Type used for display server window pointer.
-pub type Window = c_ulong;
-
-/// Type used for display server connection pointer. 
-pub type Display = c_ulong;
-
-/// Type used for pix map
-pub type Pixmap = c_ulong;
-
-/// XPointer type
-pub type XPointer = *mut c_char;
-
-/// Visual ID type
-pub type VisualID = c_ulong;
-
-/// Cursor type
-pub type Cursor = c_ulong;
+use super::{x11::{event::{XEvent, Atom}, bind::{XCloseDisplay, XInternAtom, XDefaultRootWindow}}};
 
 
 /// Enumeration of linux display server provider.
@@ -33,14 +15,69 @@ pub type Cursor = c_ulong;
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum KLinuxDisplayServerProvider {
 
-    /// Try Wayland first, then X Window.
-    Default,
-
     /// [Wayland](https://en.wikipedia.org/wiki/Wayland_(protocol)) display server.
     Wayland,
 
     /// [X Window System](https://en.wikipedia.org/wiki/X_Window_System) display server.
     X11,
+}
+
+/// Abstraction of a linux display server.
+pub trait KLinuxDisplayServer {
+    /// Pop an event from the queue
+    fn poll_event(&mut self) -> KEvent;
+
+    /// Perform sync with the display server.
+    fn sync(&self);
+
+    /// Get the count of events that need handling.
+    fn get_event_count(&self) -> usize;
+
+    /// Set the cursor position
+    fn set_cursor_position(&mut self, position : (i32, i32));
+
+    /// Hide system default cursor.
+    #[inline(always)]
+    pub(super) fn hide_cursor(&mut self);
+
+    /// Show system default cursor.
+    #[inline(always)]
+    pub(super) fn show_cursor(&mut self) ;
+
+    /// Confine cursor to window, preventing it from exiting boundaries.
+    #[inline(always)]
+    pub(super) fn confine_cursor(&mut self);
+
+    /// Release cursor from window, allowing it to exit boundaries.
+    #[inline(always)]
+    pub(super) fn release_cursor(&mut self);
+
+    /// Restore the [KWindow], undoing any minimized, maximized and/or fullscreen status.
+    #[inline(always)]
+    pub(super) fn restore(&mut self);
+
+    /// Set a new title for the [KWindow].
+    #[inline(always)]
+    pub(super) fn set_title(&mut self);
+
+    /// Set a size of [KWindow].
+    #[inline(always)]
+    pub(super) fn __set_size(&mut self);
+
+     /// Set a position of [KWindow].
+    #[inline(always)]
+    pub(super) fn __set_position(&mut self);
+
+    /// Set the [KWindow] as fullscreen.
+    #[inline(always)]
+    pub(super) fn __set_fullscreen(&mut self, mode : KWindowFullscreenMode);
+
+
+    /// Get self as Any, use for downcast. Implementation only need to return self.
+    fn as_any(&self) -> &dyn Any;
+
+    /// Get self as mut Any, use for downcast. Implementation only need to return self.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 
@@ -91,7 +128,7 @@ impl KLinuxDisplayServer {
                     let provider = KLinuxDisplayServerProvider::X11;
 
                     let prop_dis = KWindow::create_x11_display_connection();
-                    let window = KWindow::create_x11_window(prop_dis.1, &prop_dis.0, (0,0), (width, height), false);
+                    let window = KWindow::create_x11_window(prop_dis.1, KWindow::get_x11_default_root_window(prop_dis.1), &prop_dis.0, (0,0), (width, height), false);
                     Ok(KLinuxDisplayServer{ provider, x11_property : prop_dis.0, display : prop_dis.1, window : window })
                 } else {
                     // No x11 support.

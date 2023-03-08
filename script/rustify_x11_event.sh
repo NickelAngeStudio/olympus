@@ -37,9 +37,25 @@ echo "// Generated with \"script/rustify_x11_event.sh\""
 echo "// NOTE: All struct and union members name start with \"_\" to prevent conflict with Rust reserved words."
 echo ""
 echo "use std::os::raw::{ c_int, c_long, c_uint, c_ulong, c_char, c_uchar, c_short, c_void };"
-echo "use super::{Display, Window};"
 echo ""
 
+echo "/// Type used for display server window pointer."
+echo "pub type Window = c_ulong;"
+
+echo "/// Type used for display server connection pointer."
+echo "pub type Display = c_ulong;"
+
+echo "/// Type used for pix map"
+echo "pub type Pixmap = c_ulong;"
+
+echo "/// XPointer type"
+echo "pub type XPointer = *mut c_char;"
+
+echo "/// Visual ID type"
+echo "pub type VisualID = c_ulong;"
+
+echo "/// Cursor type"
+echo "pub type Cursor = c_ulong;"
 
 echo "// Types definition (ref : https://docs.rs/x11/latest/x11)"
 echo "pub type Time = c_ulong;"
