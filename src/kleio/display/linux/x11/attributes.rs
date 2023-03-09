@@ -1,6 +1,6 @@
 use std::{os::raw::{ c_int, c_ulong, c_long }, ptr::null_mut};
 
-use crate::kleio::display::linux::server::{Window, Display, XPointer, VisualID, Pixmap, Cursor};
+use crate::kleio::display::linux::x11::event::{Window, Display, XPointer, VisualID, Pixmap, Cursor};
 
 use super::event::Colormap;
 

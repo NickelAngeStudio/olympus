@@ -1,7 +1,7 @@
 use std::any::Any;
 use crate::error::OlympusError;
 
-use super::{event::KEvent, KWindowFullscreenMode, screen::KScreenList};
+use super::{event::KEvent, screen::KScreenList, KWindowProperty, cursor::KCursorMode, KFullscreenMode};
 
 /// Enumeration of [Display server](https://en.wikipedia.org/wiki/Windowing_system#Display_server)
 /// and/or [Window manager](https://en.wikipedia.org/wiki/Window_manager) providers.
@@ -32,17 +32,20 @@ pub enum KWindowProvider {
 
 /// Abstraction of a [Display server](https://en.wikipedia.org/wiki/Windowing_system#Display_server)
 /// and/or [Window manager](https://en.wikipedia.org/wiki/Window_manager) used to create and manage window.
+/// 
+/// Those members have default implementation that needs to be overrided for desktop : 
+/// * [KWindowManager::confine_cursor] 
+/// * [KWindowManager::release_cursor] 
+/// * [KWindowManager::set_cursor_mode] 
+/// * [KWindowManager::set_cursor_position] 
+/// * [KWindowManager::set_position] 
+/// * [KWindowManager::set_size] 
+/// * [KWindowManager::hide_cursor] 
+/// * [KWindowManager::show_cursor] 
+/// * [KWindowManager::restore] 
 pub trait KWindowManager {
     /// Get the window provider managing this window.
     fn get_window_provider(&self) -> KWindowProvider;
-
-    /// Static function to generate a screen list.
-    /// 
-    /// Returns Ok([KScreenList]) if successful.
-    /// 
-    /// Error(s)
-    /// Returns Err[KWindowError::ScreenDetailError] if it failed to fetch list.
-    fn get_screen_list() -> Result<KScreenList, OlympusError>;
 
     /// Pop a window event from the queue.
     fn poll_event(&mut self) -> KEvent;
@@ -50,35 +53,61 @@ pub trait KWindowManager {
     /// Get the count of events that need handling.
     fn get_event_count(&self) -> usize;
 
+    /// Get windows properties.
+    /// 
+    /// The [KWindowManager] is responsible for updating this struct.
+    fn get_window_property(&self) -> &KWindowProperty;
+
     /// Set the cursor position
-    fn set_cursor_position(&mut self, position : (i32, i32));
+    /// 
+    /// Must be overridden for desktop implementation.
+    fn set_cursor_position(&mut self, position : (i32, i32))  { todo!( )}
+
+    /// Set the cursor mode for the [KWindow] [KEventMouse](enum.KEventMouse.html) events.
+    /// 
+    /// Must be overridden for desktop implementation.
+    fn set_cursor_mode(&mut self, mode : KCursorMode)  { todo!( )}
 
     /// Hide system default cursor.
-    fn hide_cursor(&mut self);
+    /// 
+    /// Must be overridden for desktop implementation.
+    fn hide_cursor(&mut self)  { todo!( )}
 
     /// Show system default cursor.
-    fn show_cursor(&mut self) ;
+    /// 
+    /// Must be overridden for desktop implementation.
+    fn show_cursor(&mut self) { todo!( )}
 
     /// Confine cursor to window, preventing it from exiting boundaries.
-    fn confine_cursor(&mut self);
+    /// 
+    /// Must be overridden for desktop implementation.
+    fn confine_cursor(&mut self) { todo!( )}
 
     /// Release cursor from window, allowing it to exit boundaries.
-    fn release_cursor(&mut self);
+    /// 
+    /// Must be overridden for desktop implementation.
+    fn release_cursor(&mut self)  { todo!( )}
 
     /// Restore the window, undoing any minimized, maximized and/or fullscreen status.
-    fn restore(&mut self);
+    /// 
+    /// Must be overridden for desktop implementation.
+    fn restore(&mut self)  { todo!( )}
 
     /// Set a new title for the window.
-    fn set_title(&mut self);
+    fn set_title(&mut self, title : &str);
 
     /// Set a size for window.
-    fn set_size(&mut self, size : (u32, u32));
+    /// 
+    /// Must be overridden for desktop implementation.
+    fn set_size(&mut self, size : (u32, u32))  { todo!( )}
 
      /// Set a position of window.
-    fn set_position(&mut self, position : (i32, i32));
+     /// 
+     /// Must be overridden for desktop implementation.
+    fn set_position(&mut self, position : (i32, i32))  { todo!( )}
 
-    /// Set the window as fullscreen according to [KWindowFullscreenMode].
-    fn set_fullscreen(&mut self, fs_mode : KWindowFullscreenMode);
+    /// Set the window as fullscreen according to [KFullscreenMode].
+    fn set_fullscreen(&mut self, fs_mode : KFullscreenMode);
 
     /// Perform sync with the display server / window manager.
     fn sync(&self);

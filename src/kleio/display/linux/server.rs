@@ -22,64 +22,6 @@ pub enum KLinuxDisplayServerProvider {
     X11,
 }
 
-/// Abstraction of a linux display server.
-pub trait KLinuxDisplayServer {
-    /// Pop an event from the queue
-    fn poll_event(&mut self) -> KEvent;
-
-    /// Perform sync with the display server.
-    fn sync(&self);
-
-    /// Get the count of events that need handling.
-    fn get_event_count(&self) -> usize;
-
-    /// Set the cursor position
-    fn set_cursor_position(&mut self, position : (i32, i32));
-
-    /// Hide system default cursor.
-    #[inline(always)]
-    pub(super) fn hide_cursor(&mut self);
-
-    /// Show system default cursor.
-    #[inline(always)]
-    pub(super) fn show_cursor(&mut self) ;
-
-    /// Confine cursor to window, preventing it from exiting boundaries.
-    #[inline(always)]
-    pub(super) fn confine_cursor(&mut self);
-
-    /// Release cursor from window, allowing it to exit boundaries.
-    #[inline(always)]
-    pub(super) fn release_cursor(&mut self);
-
-    /// Restore the [KWindow], undoing any minimized, maximized and/or fullscreen status.
-    #[inline(always)]
-    pub(super) fn restore(&mut self);
-
-    /// Set a new title for the [KWindow].
-    #[inline(always)]
-    pub(super) fn set_title(&mut self);
-
-    /// Set a size of [KWindow].
-    #[inline(always)]
-    pub(super) fn __set_size(&mut self);
-
-     /// Set a position of [KWindow].
-    #[inline(always)]
-    pub(super) fn __set_position(&mut self);
-
-    /// Set the [KWindow] as fullscreen.
-    #[inline(always)]
-    pub(super) fn __set_fullscreen(&mut self, mode : KWindowFullscreenMode);
-
-
-    /// Get self as Any, use for downcast. Implementation only need to return self.
-    fn as_any(&self) -> &dyn Any;
-
-    /// Get self as mut Any, use for downcast. Implementation only need to return self.
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-}
-
 
 /// Contains elements relatives to X11 and Wayland display server.
 pub struct KLinuxDisplayServer {

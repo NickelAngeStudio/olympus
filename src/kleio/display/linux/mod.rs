@@ -1,19 +1,8 @@
-use crate::error::{OlympusError, KWindowError};
-
-use self::x11::{attributes::XWindowAttributes, bind::XGetWindowAttributes};
-
-use super::{ event::KEvent, KWindow, screen::KScreenList, KCursorProperty, KWindowProperty, KWindowFullscreenMode };
-use debug_print::debug_println;
-use server::KLinuxDisplayServerProvider;
-
 /// Wayland KWindowManager
 pub mod wayland;
 
 /// X11 KWindowManager
 pub mod x11;
-
-/// Linux display server details
-pub mod server;
 
 /*
 /// Macro shortcut to execute either wayland or x11 function.
